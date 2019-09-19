@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+    GPS tracker
+    Author: miktim@mail.ru
+    Created: 2019-09-05
+    Updated: 2019-09-09
+    License: CC BY-SA
+-->
+<html>
+    <head>
+        <title>LiteRadar tracker</title>
+        <link rel="icon" type="image/png" href="./images/track.png">
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <!-- Disable caching -->
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"></script>
+
+        <!--link rel="stylesheet" href="./js/libs/leaflet/leaflet.css">
+        <script src="./js/libs/leaflet/leaflet.js"></script-->
+        <!--link rel="stylesheet" href="./tracker.css"-->
+        <script src="./js/tracker.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <div id="map" style="height: 100%; width: 100%; position: absolute; top:0; left:0"> 
+            </div>
+        </div>
+        <script type="text/javascript">
+// ?mode=[auto]{demo}{,noauto}{&ws=//host:port}            
+            var mode = {};
+            try {
+// https://stackoverflow.com/questions/8648892/convert-url-parameters-to-a-javascript-object
+                var search = location.search.substring(1);
+                mode = JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}',
+                         function(key, value) {
+                            return key === "" ? value : decodeURIComponent(value);
+                        });
+            } catch (e) {
+                console.log(e.message);
+            }
+            T.run('map', mode);
+        </script>
+    </body>
+</html>
