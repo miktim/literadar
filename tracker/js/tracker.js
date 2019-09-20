@@ -1,13 +1,12 @@
 /* 
- *   LiteRadar tracker
- *   Author: miktim@mail.ru
- *   Created: 2019-09-05
- *   Updated: 2019-09-10
- *   License: CC BY-SA
+ * LiteRadar tracker
+ * Author: miktim@mail.ru
+ * Created: 2019-09-05
+ * Updated: 2019-09-20
+ * License: CC BY-SA
  */
 (window.T = {
     version: '0.1.0',
-    mode: {},
 // https://stackoverflow.com/questions/15521343/conditionally-load-javascript-file
     isMobileDevice: (screen.width > 500) ? false : true,
     map: undefined,
@@ -16,7 +15,10 @@
     markerIcon: undefined,
     track: undefined,
     trackAccuracy: undefined,
-    options: {},
+    options: {
+        mode: "watch",
+        ws: undefined
+    },
     onMessage: function(m) {
         var obj = JSON.parse(m);
         if (obj.action === "point") {
@@ -88,11 +90,11 @@
             T.mapIsLoaded = true;
         });
         T.map.locate({
-            watch: true,
-            maximumAge: 15000,
-            enableHighAccuracy: true,
             setView: false,
-            timeout: 5000
+//            timeout: 5000
+            watch: true,
+            maximumAge: 60000,
+            enableHighAccuracy: true
         });
         T.initTrack();
     },
