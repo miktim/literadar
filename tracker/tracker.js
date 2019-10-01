@@ -242,7 +242,7 @@
         map.setMarker = function(point, icon) {
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
-            if (!this.isLoaded)
+            if (!this.isLoaded && this.markers.length === 0)
                 this.setView(point.latlng, this.getZoom());
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
