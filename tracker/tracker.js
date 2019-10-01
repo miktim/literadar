@@ -140,7 +140,7 @@
     T.testMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.search.mode));
     };
-    T.checkWatch = function() {
+    T.checkWatchMode = function() {
         var src = (this.search.watch + '::').split(':');
         if (parseInt(src[0]))
             this.options.timeout = parseInt(src[0]) * 1000;
@@ -162,7 +162,7 @@
                         maximumAge: this.options.maxAge
                     });
     };
-    T.checkDemo = function(latlng) {
+    T.checkDemoMode = function(latlng) {
         if (this.testMode('demo'))
             this.demo.run(5000, latlng);
     };
@@ -170,12 +170,13 @@
         this.update(this.search, opts);
         this.map = this.trackerMap(mapId, latlng);
         this.checkWebSocket();
-        this.checkWatch();
+        this.checkWatchMode();
     };
-    // http://www.movable-type.co.uk/scripts/latlong.html
-    T.distance = function(latlng1, latlng2) {
-        var R = 6371e3; // metres
-        /*            var φ1 = lat1.toRadians();
+// http://www.movable-type.co.uk/scripts/latlong.html
+    T.distanceBetween = function(latlng1, latlng2) {
+        var R = 6371010; // Earth radius in meters
+        /*
+         var φ1 = lat1.toRadians();
          var φ2 = lat2.toRadians();
          var Δφ = (lat2 - lat1).toRadians();
          var Δλ = (lon2 - lon1).toRadians();
@@ -190,8 +191,7 @@
                 Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
         var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        var d = R * c;
-        return d;
+        return R * c;
     };
 
     T.trackerMap = function(mapId, latlng) {
@@ -243,7 +243,7 @@
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, this.getZoom());
+                this.setView(point.latlng, this.getMaxZoom());
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
                 marker.on('click', function(e) {
@@ -259,16 +259,17 @@
         };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
-                var latlng = marker.getLatLng();
-                var path = this.track.path.getLatLngs();
-                var dist = path.length > 0 ?
-                        T.distance(latlng, path[path.length - 1]) : 0;
-                if (dist >= T.options.minDistance) {
-                    this.track.path.addLatLng(latlng);
-                    L.circle(latlng, marker.accuracy.getRadius(),
+                var pos = marker.getLatLng();
+                var pln = this.track.path.getLatLngs();
+                var dst = 0;
+                if (pln.length > 0)
+                    dst = T.distanceBetween(pos, pln[pln.length - 1]);
+                if (pln.length === 0 || dst >= T.options.minDistance) {
+                    this.track.path.addLatLng(pos);
+                    L.circle(pos, marker.accuracy.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracy);
                 }
-                this.setView(latlng, this.getZoom());
+                this.setView(pos, this.getZoom());
             }
         };
         map.moveMarker = function(point) {
@@ -295,11 +296,11 @@
             map.setView(latlng, map.getZoom());
         else {
             map.on('locationfound', function(e) {
-                T.checkDemo(e.latlng);
+                T.checkDemoMode(e.latlng);
             });
             map.on('locationerror', function(e) {
                 console.log(e.message);
-                T.checkDemo();
+                T.checkDemoMode();
             });
             map.locate({setView: false});
         }
@@ -338,12 +339,12 @@
             return (Math.random() * (maxDbl - minDbl)) + minDbl;
         },
 // http://www.movable-type.co.uk/scripts/latlong.html
-        pointRadialDistance: function(latLng, degreeBearing, radialDistance) {
+        pointRadialDistance: function(latlng, degreeBearing, radialDistance) {
             var R = 6371.01; // Earth radius km
             var d = radialDistance / 1000; // distance km
             var brng = (degreeBearing % 360) * Math.PI / 180; //degree bearing to radiant bearing
-            var φ1 = latLng[0] * Math.PI / 180; // latitude to radiant
-            var λ1 = latLng[1] * Math.PI / 180; // longitude to radiant
+            var φ1 = latlng[0] * Math.PI / 180; // latitude to radiant
+            var λ1 = latlng[1] * Math.PI / 180; // longitude to radiant
             var φ2 = Math.asin(Math.sin(φ1) * Math.cos(d / R) +
                     Math.cos(φ1) * Math.sin(d / R) * Math.cos(brng));
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
