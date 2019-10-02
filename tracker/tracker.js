@@ -16,7 +16,8 @@
         options: {
             timeout: 20000,
             maxAge: 20000,
-            minDistance: 20
+            minDistance: 20,
+            defaultZoom: 15
         },
         messages: {},
         points: {},
@@ -109,7 +110,7 @@
         this.onPoint(p);
     };
     T.onLocationError = function(e) {
-        console.log(e.message);
+        console.log('Geolocation: ' + e.message);
         this.stopLocation();
     };
 // https://w3c.github.io/geolocation-api/
@@ -119,7 +120,7 @@
         if (!('geolocation' in navigator)) {
             onError({
                 code: 0,
-                message: 'Geolocation not supported.'
+                message: 'not supported.'
             });
             return;
         }
@@ -195,14 +196,13 @@
 
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
-            minZoom: 12,
-            zoom: 16,
+            minZoom: 10,
+            zoom: T.options.defaultZoom,
             zoomControl: false
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-//        L.control.scale({metric: true}).addTo(map);
         map.isLoaded = false;
         map.showAccuracy = true;
         map.hideAccuracy = function(hide) {
@@ -242,7 +242,7 @@
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, 12);
+                this.setView(point.latlng, T.options.defaultZoom);
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
                 marker.on('click', function(e) {
@@ -291,7 +291,7 @@
             map.onLoad(e); // bind?
         });
         if (latlng) {
-            map.setView(latlng, map.getZoom());
+            map.setView(latlng, T.options.defaultZoom);
             T.checkDemoMode(latlng);
         } else {
             map.on('locationfound', function(e) {
