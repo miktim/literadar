@@ -342,7 +342,7 @@
             var R = 6371.01; // Earth radius km
             var d = radialDistance / 1000; // distance km
             var brng = (degreeBearing % 360) * Math.PI / 180; //degree bearing to radiant bearing
-            latlng = (latlng.isArray()) ? {lat: latlng[0], lng: latlng[1]} : latlng;
+            latlng = (Array.isArray(latlng)) ? {lat: latlng[0], lng: latlng[1]} : latlng;
             var φ1 = latlng.lat * Math.PI / 180; // latitude to radiant
             var λ1 = latlng.lng * Math.PI / 180; // longitude to radiant
             var φ2 = Math.asin(Math.sin(φ1) * Math.cos(d / R) +
