@@ -242,7 +242,7 @@
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, this.getZoom());
+                this.setView(point.latlng, 12);
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
                 marker.on('click', function(e) {
