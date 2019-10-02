@@ -14,10 +14,9 @@
             ws: ''// websocket address
         },
         options: {
-            timeout: 20000,
+            timeout: 30000,
             maxAge: 20000,
-            minDistance: 20,
-            defaultZoom: 15
+            minDistance: 20
         },
         messages: {},
         points: {},
@@ -49,7 +48,7 @@
 
     T.Point = function() {
         this.id = '';         // unique source id (string)
-        this.latlng = undefined;     // [latitude, longitude]
+        this.latlng = undefined;     // {lat, lng}
         this.accuracy = NaN;  // meters (radius)
         this.speed = NaN;     // meters per second
         this.altitude = NaN;  // meters
@@ -197,7 +196,7 @@
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 10,
-            zoom: T.options.defaultZoom,
+            zoom: 15,
             zoomControl: false
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
@@ -242,7 +241,7 @@
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, T.options.defaultZoom);
+                this.setView(point.latlng, this.options.zoom);
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
                 marker.on('click', function(e) {
@@ -286,12 +285,13 @@
         };
         map.onLoad = function(e) {
             this.isLoaded = true;
+            T.checkDemoMode(this.getCenter());
         };
         map.on('load', function(e) {
             map.onLoad(e); // bind?
         });
         if (latlng) {
-            map.setView(latlng, T.options.defaultZoom);
+            map.setView(latlng, this.options.zoom);
             T.checkDemoMode(latlng);
         } else {
             map.on('locationfound', function(e) {
