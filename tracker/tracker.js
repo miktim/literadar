@@ -1,9 +1,6 @@
 /* 
- * LiteRadar tracker
- * Author: miktim@mail.ru
- * Created: 2019-09-05
- * Updated: 2019-10-01
- * License: CC-BY-SA
+ * LiteRadar tracker rev 191002
+ * (c) 2019 miktim@mail.ru CC-BY-SA
  */
 
 (function(window, document) {
@@ -104,7 +101,7 @@
         var p = new T.Point();
         T.update(p, l.coords);
         p.id = "It's me";
-        p.latlng = [l.coords.latitude, l.coords.longitude];
+        p.latlng = L.latLng(l.coords.latitude, l.coords.longitude);
         p.timestamp = l.timestamp;
         p.timeout = T.options.maxAge;
         if (!this.points[p.id])
@@ -150,8 +147,8 @@
             this.options.minDistance = parseInt(src[2]);
         if (!this.testMode('nowatch'))
             this.watchLocation(
-                    function(l) {
-                        T.onLocationFound(l);
+                    function(e) {
+                        T.onLocationFound(e);
                     },
                     function(e) {
                         T.onLocationError(e);
@@ -167,13 +164,13 @@
             this.demo.run(5000, latlng);
     };
     T.run = function(opts, mapId, latlng) {
-        this.update(this.search, opts);
-        this.map = this.trackerMap(mapId, latlng);
+        T.update(this.search, opts);
+        this.map = this._map(mapId, latlng);
         this.checkWebSocket();
         this.checkWatchMode();
     };
 // http://www.movable-type.co.uk/scripts/latlong.html
-    T.distanceBetween = function(latlng1, latlng2) {
+    T.distanceBetween = function(latlngA, latlngB) {
         var R = 6371010; // Earth radius in meters
         /*
          var φ1 = lat1.toRadians();
@@ -181,10 +178,12 @@
          var Δφ = (lat2 - lat1).toRadians();
          var Δλ = (lon2 - lon1).toRadians();
          */
-        var φ1 = latlng1[0] * Math.PI / 180;
-        var φ2 = latlng2[0] * Math.PI / 180;
-        var Δφ = (latlng2[0] - latlng1[0]) * Math.PI / 180;
-        var Δλ = (latlng2[1] - latlng1[1]) * Math.PI / 180;
+        latlngA = ('lat' in latlngA) ? [latlngA.lat, latlngA.lng] : latlngA;
+        latlngB = ('lat' in latlngB) ? [latlngB.lat, latlngB.lng] : latlngB;
+        var φ1 = latlngA[0] * Math.PI / 180;
+        var φ2 = latlngB[0] * Math.PI / 180;
+        var Δφ = (latlngB[0] - latlngA[0]) * Math.PI / 180;
+        var Δλ = (latlngB[1] - latlngA[1]) * Math.PI / 180;
 
         var a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
                 Math.cos(φ1) * Math.cos(φ2) *
@@ -194,10 +193,10 @@
         return R * c;
     };
 
-    T.trackerMap = function(mapId, latlng) {
+    T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
-            minZoom: 10,
-            zoom: 18,
+            minZoom: 12,
+            zoom: 16,
             zoomControl: false
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
@@ -243,7 +242,7 @@
             icon = icon || T.icons.active;
             var marker = this.markers[point.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, this.getMaxZoom());
+                this.setView(point.latlng, this.getZoom());
             if (!marker) {
                 marker = L.marker(point.latlng, {icon: icon, alt: point.id});
                 marker.on('click', function(e) {
@@ -261,9 +260,8 @@
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
                 var pln = this.track.path.getLatLngs();
-                var dst = 0;
-                if (pln.length > 0)
-                    dst = T.distanceBetween(pos, pln[pln.length - 1]);
+                var dst = (pln.length > 0 ?
+                        T.distanceBetween(pos, pln[pln.length - 1]) : 0);
                 if (pln.length === 0 || dst >= T.options.minDistance) {
                     this.track.path.addLatLng(pos);
                     L.circle(pos, marker.accuracy.getRadius(),
@@ -292,9 +290,10 @@
         map.on('load', function(e) {
             map.onLoad(e); // bind?
         });
-        if (latlng)
+        if (latlng) {
             map.setView(latlng, map.getZoom());
-        else {
+            T.checkDemoMode(latlng);
+        } else {
             map.on('locationfound', function(e) {
                 T.checkDemoMode(e.latlng);
             });
@@ -343,6 +342,7 @@
             var R = 6371.01; // Earth radius km
             var d = radialDistance / 1000; // distance km
             var brng = (degreeBearing % 360) * Math.PI / 180; //degree bearing to radiant bearing
+            latlng = ('lat' in latlng) ? [latlng.lat, latlng.lng] : latlng;
             var φ1 = latlng[0] * Math.PI / 180; // latitude to radiant
             var λ1 = latlng[1] * Math.PI / 180; // longitude to radiant
             var φ2 = Math.asin(Math.sin(φ1) * Math.cos(d / R) +
@@ -353,14 +353,13 @@
         },
         moveRandom: function(p) {
             p.heading = this.randDbl(0, 180);
-            var latlng = this.pointRadialDistance(
+            var dst = this.randDbl(10, 50);
+            p.latlng = this.pointRadialDistance(
                     p.latlng,
                     p.heading,
-                    this.randDbl(10, 50)
+                    dst
                     );
-            p.speed = T.distance(p.latlng, latlng)
-                    /((Date.now - p.timestamp)/1000); //meters per second
-            p.latlng = latlng;
+            p.speed = dst / ((Date.now - p.timestamp) / 1000); //meters per second
             p.accuracy = this.randDbl(5, 25); //radius!
             p.timestamp = Date.now();
             return p;
@@ -375,7 +374,7 @@
                 var p = new T.Point();
                 p.action = 'point';
                 p.id = 'Demo ' + (i + 1);
-                p.latlng = latlng ? latlng : [51.505, -0.09];
+                p.latlng = latlng ? latlng : L.latLng(51.505, -0.09);
                 p.timeout = delay;
                 this.demos[i] = this.moveRandom(p);
             }
