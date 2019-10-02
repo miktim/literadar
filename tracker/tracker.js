@@ -199,8 +199,7 @@
             zoom: 16,
             zoomControl: false
         });
-//        L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
-        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 //        L.control.scale({metric: true}).addTo(map);
@@ -343,14 +342,14 @@
             var R = 6371.01; // Earth radius km
             var d = radialDistance / 1000; // distance km
             var brng = (degreeBearing % 360) * Math.PI / 180; //degree bearing to radiant bearing
-            latlng = ('lat' in latlng) ? [latlng.lat, latlng.lng] : latlng;
-            var φ1 = latlng[0] * Math.PI / 180; // latitude to radiant
-            var λ1 = latlng[1] * Math.PI / 180; // longitude to radiant
+            latlng = (latlng.isArray()) ? {lat: latlng[0], lng: latlng[1]} : latlng;
+            var φ1 = latlng.lat * Math.PI / 180; // latitude to radiant
+            var λ1 = latlng.lng * Math.PI / 180; // longitude to radiant
             var φ2 = Math.asin(Math.sin(φ1) * Math.cos(d / R) +
                     Math.cos(φ1) * Math.sin(d / R) * Math.cos(brng));
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
                     Math.cos(d / R) - Math.sin(φ1) * Math.sin(φ2));
-            return [φ2 * 180 / Math.PI, ((λ2 * 180 / Math.PI) + 540) % 360 - 180];
+            return {lat: φ2 * 180 / Math.PI, lng: ((λ2 * 180 / Math.PI) + 540) % 360 - 180};
         },
         moveRandom: function(p) {
             p.heading = this.randDbl(0, 180);
