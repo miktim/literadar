@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191002
+ * LiteRadar tracker rev 191004
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
 
@@ -18,7 +18,9 @@
             maxAge: 20000,
             minDistance: 20
         },
-        messages: {},
+        locale: {
+            itsme: "It's me."
+        },
         points: {},
         icons: {
             own: undefined,
@@ -100,7 +102,7 @@
     T.onLocationFound = function(l) {
         var p = new T.Point();
         T.update(p, l.coords);
-        p.id = "It's me";
+        p.id = T.locale.itsme;
         p.latlng = L.latLng(l.coords.latitude, l.coords.longitude);
         p.timestamp = l.timestamp;
         p.timeout = T.options.maxAge;
@@ -110,7 +112,7 @@
     };
     T.onLocationError = function(e) {
         console.log('Geolocation: ' + e.message);
-        this.stopLocation();
+//        this.stopLocation();
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
@@ -196,7 +198,7 @@
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 10,
-            zoom: 15,
+            zoom: 17,
             zoomControl: false
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
@@ -205,13 +207,15 @@
         map.isLoaded = false;
         map.showAccuracy = true;
         map.hideAccuracy = function(hide) {
-            this.showAccuracy = hide || false;
+            this.showAccuracy = !hide;
         };
         map.markers = [];
         map.track = {
             marker: undefined,
             path: undefined,
-            accuracy: undefined
+            accuracy: undefined,
+            started: undefined,
+            pathLength: undefined
         };
         map.track.init = function(map) {
             if (map.hasLayer(this.accuracy)) {
@@ -225,16 +229,21 @@
             this.path = L.polyline([], {weight: 2, color: "red"}).addTo(map);
             this.accuracy = L.featureGroup();
             map.addLayer(this.accuracy);
-            map.trackMarker(this.marker);
+            this.pathLength = 0;
         };
         map.onMarkerClick = function(e) {
             var id = e.target.options.alt;
             var marker = this.markers[id];
-            if (this.track.marker === marker)
+            if (this.track.marker === marker) {
                 this.track.marker = undefined;
-            else {
-                this.track.marker = marker;
+                this.UI.infoPane.removeFrom(this);
+            } else {
                 this.track.init(this);
+                this.track.started = Date.now();
+                if (!this.infoPane)
+                    this.UI.infoPane.addTo(this);
+                this.track.marker = marker;
+                this.trackMarker(marker);
             }
         };
         map.setMarker = function(point, icon) {
@@ -261,12 +270,19 @@
                 var pln = this.track.path.getLatLngs();
                 var dst = (pln.length > 0 ?
                         T.distanceBetween(pos, pln[pln.length - 1]) : 0);
+                this.track.pathLength += dst;
                 if (pln.length === 0 || dst >= T.options.minDistance) {
                     this.track.path.addLatLng(pos);
                     L.circle(pos, marker.accuracy.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracy);
                 }
                 this.setView(pos, this.getZoom());
+                this.UI.infoPane.update({
+                    id: marker.options.alt,
+                    pathLength: this.track.pathLength,
+                    pathTime: Date.now() - this.track.started,
+                    accuracy: marker.accuracy.getRadius()
+                });
             }
         };
         map.moveMarker = function(point) {
@@ -280,20 +296,101 @@
                 this.trackMarker(marker);
             }
         };
+        map.UI = {
+            infoPane: undefined,
+            consolePane: undefined,
+            controlPane: undefined,
+            init: function(map) {
+
+                map.UI.infoPane = L.Control.extend({
+                    options: {
+                        position: 'bottomleft',
+                        infoData: {id: {nick: 'Track', unit: ''},
+                            pathLength: {nick: 'Dist', unit: 'm'},
+                            pathTime: {nick: 'Time', unit: 'hh:mm'},
+                            speed: {nick: 'SPD', unit: 'm/sec'},
+                            accuracy: {nick: 'ACC', unit: 'm'}
+                        }
+                    },
+                    onAdd: function(map) {
+                        var pane = L.DomUtil.create('div', 'tracker-pane');
+                        var tbl = L.DomUtil.create('table', 'tracker-info-table', pane)
+                                , row;
+                        for (var key in this.options.infoData) {
+                            row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
+                            el = L.DomUtil.create('td', 'tracker-info-cell', row);
+                            el.innerHTML = this.options.infoData[key].nick;
+                            el = L.DomUtil.create('td', 'tracker-info-cell', row);
+                            this.options.infoData[key].element = el;
+                        }
+// https://stackoverflow.com/questions/33146809/find-out-if-a-leaflet-control-has-already-been-added-to-the-map                
+                        map.infoPane = this;
+                        return pane;
+                    },
+                    update: function(info) {
+                        for (var key in this.options.infoData) {
+                            var value = info[key];
+                            switch (key) {
+                                case 'id':
+                                    break;
+                                case 'pathTime' :
+                                    value = ((new Date(value)).toISOString())
+                                            .substring(11, 19);
+                                    break;
+                                default:
+                                    value = Math.round(value).toString();
+                            }
+                            this.options.infoData[key].element.innerHTML = value;
+                        }
+                    }
+                });
+                map.UI.infoPane = new map.UI.infoPane(map);
+                map.UI.consolePane = L.Control.extend({
+                    options: {position: 'bottomright', element: undefined},
+                    onAdd: function(map) {
+                        var pane = L.DomUtil.create('div', 'tracker-pane');
+                        this.options.element =
+                                L.DomUtil.create('div', 'tracker-console-message', pane);
+                        pane.hidden = true;
+                        map.consolePane = this;
+                        return pane;
+                    },
+                    log: function(m, timeout) {
+                        if (m) {
+                            this.options.element.innerHTML =
+                                    (new Date()).toISOString().substring(11, 16)
+                                    + ' ' + m;
+                            this.options.element.parentElement.hidden = false;
+                            timeout = timeout ? timeout : 10000;
+                            setTimeout(function(e) {
+                                e.hidden = true;
+                            }, timeout, this.options.element.parentElement);
+                        } else {
+                            this.options.element.parentElement.hidden = true;
+                        }
+                    }});
+                map.UI.consolePane = new map.UI.consolePane(map);
+                map.UI.consolePane.addTo(map);
+                map.UI.controlPane;
+            }
+        };
         map.removeMarker = function(point) {
 
         };
         map.onLoad = function(e) {
             this.isLoaded = true;
             T.checkDemoMode(this.getCenter());
+            this.UI.consolePane.log();
         };
         map.on('load', function(e) {
             map.onLoad(e); // bind?
         });
-        if (latlng) {
+
+        map.UI.init(map);
+        map.UI.consolePane.log('Expect location...', 100000);
+        if (latlng)
             map.setView(latlng, this.options.zoom);
-            T.checkDemoMode(latlng);
-        } else {
+        else {
             map.on('locationfound', function(e) {
                 T.checkDemoMode(e.latlng);
             });
@@ -301,28 +398,11 @@
                 console.log(e.message);
                 T.checkDemoMode();
             });
-            map.locate({setView: false});
+            map.locate({setView: false}); // no load event
         }
         return map;
     };
-    /*    
-     console: {
-     control: undefined,
-     log: function(m, opt) {
-     if (!this.control) {
-     this.control = document.createElement('div');
-     this.control.className = "tracker-console leaflet-control";
-     T.mapElement.after(this.control);
-     }
-     this.control.innerHTML = m;
-     },
-     clear: function() {
-     if (this.control) {
-     this.control.remove();
-     }
-     }
-     },
-     */
+
     T.demo = {
         isRunning: false,
         demos: [],
@@ -359,8 +439,8 @@
                     p.heading,
                     dst
                     );
-            p.speed = dst / ((Date.now - p.timestamp) / 1000); //meters per second
-            p.accuracy = this.randDbl(5, 25); //radius!
+            p.speed = dst / ((Date.now() - p.timestamp) / 1000); //meters per second
+            p.accuracy = this.randDbl(5, 50); //radius!
             p.timestamp = Date.now();
             return p;
         },

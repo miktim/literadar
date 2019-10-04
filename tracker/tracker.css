@@ -1,17 +1,35 @@
 /* 
- * LiteRadar tracker rev 191002
+ * LiteRadar tracker rev 191004
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
-.tracker-console{
-    float: right;
-    max-width: 265px; 
-    background-color: white;
+.tracker-pane{
+    /*    z-index: 300;
+        float: left;
+        max-width: 265px; 
+        height: 20px;
+        margin: 12px;
+        padding: 10px; */
     border: 2px solid darkgrey;
-    height: 20px;
     border-radius: 5px;
     box-shadow: 0 0 2px grey;
-    margin: 12px;
-    padding: 10px;
+    background-color: black;
     text-align: left;
+    color: white;
+    font-weight: bold;
     font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+.tracker-info-table{
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 1px solid white;
+}
+/*.tracker-info-row{
+  border: inherit;    
+}*/
+.tracker-info-cell{
+    border: 1px solid white;
+    padding: 0px 5px;
+}
+.tracker-console-message{
+    padding:0px 10px
 }
