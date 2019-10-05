@@ -236,7 +236,8 @@
             var marker = this.markers[id];
             if (this.track.marker === marker) {
                 this.track.marker = undefined;
-                this.UI.infoPane.removeFrom(this);
+                if (this.infoPane)
+                    this.UI.infoPane.removeFrom(this);
             } else {
                 this.track.init(this);
                 this.track.started = Date.now();
@@ -279,8 +280,8 @@
                 this.setView(pos, this.getZoom());
                 this.UI.infoPane.update({
                     id: marker.options.alt,
-                    pathLength: this.track.pathLength,
-                    pathTime: Date.now() - this.track.started,
+                    trackLength: this.track.pathLength,
+                    timestamp: Date.now(),
                     accuracy: marker.accuracy.getRadius()
                 });
             }
@@ -292,9 +293,12 @@
             else {
                 marker.setLatLng(point.latlng);
                 marker.accuracy.setLatLng(point.latlng);
-                marker.accuracy.setRadius(point.accuracy / 2);
+                marker.accuracy.setRadius(point.accuracy);
                 this.trackMarker(marker);
             }
+        };
+        map.removeMarker = function(point) {
+
         };
         map.UI = {
             infoPane: undefined,
@@ -302,12 +306,13 @@
             controlPane: undefined,
             init: function(map) {
 
-                map.UI.infoPane = L.Control.extend({
+                map.UI.infoPane = new (L.Control.extend({
                     options: {
                         position: 'bottomleft',
                         infoData: {id: {nick: 'Track', unit: ''},
-                            pathLength: {nick: 'Dist', unit: 'm'},
-                            pathTime: {nick: 'Time', unit: 'hh:mm'},
+                            trackLength: {nick: 'Dist', unit: 'm'},
+                            trackTime: {nick: 'Time', unit: ''},
+                            timestamp: {nick: 'TME', unit: ''},
                             speed: {nick: 'SPD', unit: 'm/sec'},
                             accuracy: {nick: 'ACC', unit: 'm'}
                         }
@@ -315,7 +320,7 @@
                     onAdd: function(map) {
                         var pane = L.DomUtil.create('div', 'tracker-pane');
                         var tbl = L.DomUtil.create('table', 'tracker-info-table', pane)
-                                , row;
+                                , row, el;
                         for (var key in this.options.infoData) {
                             row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
                             el = L.DomUtil.create('td', 'tracker-info-cell', row);
@@ -324,18 +329,30 @@
                             this.options.infoData[key].element = el;
                         }
 // https://stackoverflow.com/questions/33146809/find-out-if-a-leaflet-control-has-already-been-added-to-the-map                
+                        el = this.options.infoData.trackTime.element;
+                        el.innerHTML = '00:00:00';
+                        this.options.timer = setInterval(function(element, startTime) {
+                            element.innerHTML = ((new Date(Date.now() - startTime))
+                                    .toISOString().substring(11, 19));
+                        }, 30000, el, Date.now());
                         map.infoPane = this;
                         return pane;
                     },
+                    onRemove: function(map) {
+                        clearInterval(map.infoPane.options.timer);
+                        delete map.infoPane;
+                    },
                     update: function(info) {
                         for (var key in this.options.infoData) {
+                            if (!(key in info))
+                                continue;
                             var value = info[key];
                             switch (key) {
                                 case 'id':
                                     break;
-                                case 'pathTime' :
-                                    value = ((new Date(value)).toISOString())
-                                            .substring(11, 19);
+                                case 'timestamp' :
+                                    value = (new Date(value)).toTimeString()
+                                            .substring(0, 8);
                                     break;
                                 default:
                                     value = Math.round(value).toString();
@@ -343,40 +360,49 @@
                             this.options.infoData[key].element.innerHTML = value;
                         }
                     }
-                });
-                map.UI.infoPane = new map.UI.infoPane(map);
-                map.UI.consolePane = L.Control.extend({
+                }));
+                map.UI.consolePane = new (L.Control.extend({
                     options: {position: 'bottomright', element: undefined},
                     onAdd: function(map) {
                         var pane = L.DomUtil.create('div', 'tracker-pane');
-                        this.options.element =
-                                L.DomUtil.create('div', 'tracker-console-message', pane);
+                        this.options.element = pane;
+                        L.DomUtil.create('div', 'tracker-console-message', pane);
                         pane.hidden = true;
                         map.consolePane = this;
                         return pane;
                     },
+                    onRemove: function(map) {
+                        delete map.consolePane;
+                    },
                     log: function(m, timeout) {
                         if (m) {
-                            this.options.element.innerHTML =
-                                    (new Date()).toISOString().substring(11, 16)
+                            this.options.element.childNodes[0].innerHTML =
+                                    (new Date()).toTimeString().substring(0, 8)
                                     + ' ' + m;
-                            this.options.element.parentElement.hidden = false;
+                            this.options.element.hidden = false;
                             timeout = timeout ? timeout : 10000;
-                            setTimeout(function(e) {
+                            this.options.timer = setTimeout(function(e) {
                                 e.hidden = true;
-                            }, timeout, this.options.element.parentElement);
+                            }, timeout, this.options.element);
                         } else {
-                            this.options.element.parentElement.hidden = true;
+                            this.options.element.hidden = true;
                         }
-                    }});
-                map.UI.consolePane = new map.UI.consolePane(map);
+                    }
+                }));
                 map.UI.consolePane.addTo(map);
-                map.UI.controlPane;
-            }
-        };
-        map.removeMarker = function(point) {
+                map.UI.controlPane = new (L.Control.extend({
+                    options: {position: 'topright'},
+                    onAdd: function(map) {
+                        var pane = L.DomUtil.create('div', 'tracker-pane');
+                        return pane;
+                    },
+                    onRemove: function(map) {
 
-        };
+                    }
+                }));
+                map.UI.controlPane.addTo(map);
+            }
+        }
         map.onLoad = function(e) {
             this.isLoaded = true;
             T.checkDemoMode(this.getCenter());
