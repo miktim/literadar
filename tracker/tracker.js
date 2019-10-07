@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191004
+ * LiteRadar tracker rev 191007
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
 
@@ -194,10 +194,9 @@
 
         return R * c;
     };
-
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
-            minZoom: 10,
+            minZoom: 5,
             zoom: 17,
             zoomControl: false
         });
@@ -206,10 +205,25 @@
         }).addTo(map);
         map.isLoaded = false;
         map.showAccuracy = true;
-        map.hideAccuracy = function(hide) {
-            this.showAccuracy = !hide;
+        map.toggleAccuracy = function() {
+            this.showAccuracy = !this.showAccuracy;
+            if (this.showAccuracy)
+                this.addLayer(this.track.accuracy);
+            else
+                this.removeLayer(this.track.accuracy);
         };
         map.markers = [];
+        map.boundMarkers = function() {
+            var latLngs = [];
+            for (var m in this.markers) {
+                latLngs.push(this.markers[m].getLatLng());
+            }
+            if (latLngs.length > 0) {
+                var bounds = L.latLngBounds(latLngs);
+                this.fitBounds(bounds);
+                this.setView(bounds.getCenter());
+            }
+        };
         map.track = {
             marker: undefined,
             path: undefined,
@@ -289,13 +303,14 @@
         map.moveMarker = function(point) {
             var marker = this.markers[point.id];
             if (!marker)
-                this.setMarker(point);
+                marker = this.setMarker(point);
             else {
                 marker.setLatLng(point.latlng);
                 marker.accuracy.setLatLng(point.latlng);
                 marker.accuracy.setRadius(point.accuracy);
                 this.trackMarker(marker);
             }
+            marker.point = point;
         };
         map.removeMarker = function(point) {
 
@@ -391,9 +406,32 @@
                 }));
                 map.UI.consolePane.addTo(map);
                 map.UI.controlPane = new (L.Control.extend({
-                    options: {position: 'topright'},
+                    options: {position: 'topright',
+                        buttons: {
+  //                          btnMenu: {img: './images/btn_menu.png', onclick: undefined},
+                            btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e){
+                                    map.toggleAccuracy();
+                            }},
+                            btnBound: {img: './images/btn_bound.png', onclick: function(e) {
+                                    map.boundMarkers();
+                                }},
+                            btnLocate: {img: './images/btn_locate.png', onclick: function(e) {
+                                    map.locate({setView: true});
+                                }}
+                        }
+                    },
                     onAdd: function(map) {
                         var pane = L.DomUtil.create('div', 'tracker-pane');
+                        var tbl = L.DomUtil.create('table', 'tracker-button-table', pane)
+                                , row, cell, btn;
+                        for (var key in this.options.buttons) {
+                            row = L.DomUtil.create('tr', 'tracker-button-row', tbl);
+                            cell = L.DomUtil.create('td', 'tracker-button-cell', row);
+                            btn = L.DomUtil.create('img', 'tracker-button', cell);
+                            btn.src = this.options.buttons[key].img;
+                            if (this.options.buttons[key].onclick)
+                                btn.onclick = this.options.buttons[key].onclick;
+                        }
                         return pane;
                     },
                     onRemove: function(map) {
@@ -402,7 +440,7 @@
                 }));
                 map.UI.controlPane.addTo(map);
             }
-        }
+        };
         map.onLoad = function(e) {
             this.isLoaded = true;
             T.checkDemoMode(this.getCenter());
@@ -421,6 +459,7 @@
                 T.checkDemoMode(e.latlng);
             });
             map.on('locationerror', function(e) {
+                map.UI.consolePane.log(e.message);
                 console.log(e.message);
                 T.checkDemoMode();
             });

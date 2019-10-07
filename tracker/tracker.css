@@ -21,7 +21,7 @@
 .tracker-info-table{
     table-layout: fixed;
     border-collapse: collapse;
-    border: 1px solid white;
+    /*    border: 1px solid white;*/
 }
 /*.tracker-info-row{
   border: inherit;    
@@ -31,5 +31,30 @@
     padding: 0px 5px;
 }
 .tracker-console-message{
-    padding:0px 10px
+    padding: 0px 10px
+}
+.tracker-button{
+    padding: 0px;
+    margin: 0px;
+    /*    border: 1px solid white;*/
+}
+.tracker-button-table{
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.tracker-button-cell{
+    border: 1px solid white;
+    padding: 2px 2px;
+}
+img.tracker-button{
+    -webkit-filter: invert(1);
+    filter: invert(1);
+    margin-left: 2px;
+    margin-right: 2px;
+    width: 32px;
+    height: 32px;
+    vertical-align: middle;
+    /*    border-radius: 6px;
+    border: 1px solid black;*/
+    cursor: pointer;
 }
