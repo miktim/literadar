@@ -21,12 +21,18 @@
 .tracker-info-table{
     table-layout: fixed;
     border-collapse: collapse;
-    /*    border: 1px solid white;*/
 }
-/*.tracker-info-row{
-  border: inherit;    
-}*/
-.tracker-info-cell{
+.tracker-info-header{
+    background-color: darkgray;
+    padding: 0px 5px;
+}
+.tracker-info-nick{
+    width: 50px; 
+    border: 1px solid white;
+    padding: 0px 5px;
+} 
+.tracker-info-value{
+    width: 80px; 
     border: 1px solid white;
     padding: 0px 5px;
 }
@@ -36,23 +42,18 @@
 .tracker-button{
     padding: 0px;
     margin: 0px;
-    /*    border: 1px solid white;*/
 }
-.tracker-button-table{
-    table-layout: fixed;
-    border-collapse: collapse;
-}
-.tracker-button-cell{
-    border: 1px solid white;
-    padding: 2px 2px;
+div.tracker-button{
+    margin-bottom:5px;
+    background-color: black;
 }
 img.tracker-button{
     -webkit-filter: invert(1);
     filter: invert(1);
     margin-left: 2px;
     margin-right: 2px;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     vertical-align: middle;
     /*    border-radius: 6px;
     border: 1px solid black;*/

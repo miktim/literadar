@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191007
+ * LiteRadar tracker rev 191008
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
 
@@ -21,7 +21,7 @@
         locale: {
             itsme: "It's me."
         },
-        points: {},
+        locations: {},
         icons: {
             own: undefined,
             active: undefined,
@@ -48,7 +48,7 @@
     T.icons.active = T.makeIcon("./images/phone_b.png");
     T.icons.inactive = T.makeIcon("./images/phone_g.png");
 
-    T.Point = function() {
+    T.Location = function() {
         this.id = '';         // unique source id (string)
         this.latlng = undefined;     // {lat, lng}
         this.accuracy = NaN;  // meters (radius)
@@ -60,13 +60,13 @@
     };
     T.onAction = function(m) {
         var obj = JSON.parse(m);
-        if (obj.action === "point") {
-            this.onPoint(obj); //t.map
+        if (obj.action === "location") {
+            this.onLocation(obj);
         }
     };
-    T.onPoint = function(p) {
-        if (!this.points[p.id]) {
-            this.points[p.id] = p;
+    T.onLocation = function(p) {
+        if (!this.locations[p.id]) {
+            this.locations[p.id] = p;
         }
         this.map.moveMarker(p);
     };
@@ -100,15 +100,15 @@
         }
     };
     T.onLocationFound = function(l) {
-        var p = new T.Point();
+        var p = new T.Location();
         T.update(p, l.coords);
         p.id = T.locale.itsme;
         p.latlng = L.latLng(l.coords.latitude, l.coords.longitude);
         p.timestamp = l.timestamp;
         p.timeout = T.options.maxAge;
-        if (!this.points[p.id])
+        if (!this.locations[p.id])
             this.map.setMarker(p, this.icons.own);
-        this.onPoint(p);
+        this.onLocation(p);
     };
     T.onLocationError = function(e) {
         console.log('Geolocation: ' + e.message);
@@ -127,9 +127,14 @@
         }
         if (this.watchId)
             this.stopLocation();
-        this.watchId = (navigator.geolocation.watchPosition(
-                onLocation, onError, options));
-    };
+        this.watchId = navigator.geolocation.watchPosition(
+                onLocation, onError, options);
+
+        /*           clearTimeout(watchId);
+         watchId = setInterval(function(onLocation, onError, options) {
+         navigator.geolocation.getCurrentLocation(onLocation, onError, options);
+         }, options.timeout, onLocation, onError, options);
+         */    };
     T.stopLocation = function() {
         if (this.watchId) {
             navigator.geolocation.clearWatch(this.watchId);
@@ -204,13 +209,20 @@
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
         map.isLoaded = false;
+        map.accuracyLayer = L.featureGroup(); // markers accuracy
+        map.addLayer(map.accuracyLayer);
         map.showAccuracy = true;
         map.toggleAccuracy = function() {
             this.showAccuracy = !this.showAccuracy;
-            if (this.showAccuracy)
-                this.addLayer(this.track.accuracy);
-            else
-                this.removeLayer(this.track.accuracy);
+            if (this.showAccuracy) {
+                if (!map.hasLayer(this.track.accuracyLayer))
+                    this.addLayer(this.track.accuracyLayer);
+                this.addLayer(this.accuracyLayer);
+            } else {
+                if (map.hasLayer(this.track.accuracyLayer))
+                    this.removeLayer(this.track.accuracyLayer);
+                this.removeLayer(this.accuracyLayer);
+            }
         };
         map.markers = [];
         map.boundMarkers = function() {
@@ -226,23 +238,21 @@
         };
         map.track = {
             marker: undefined,
-            path: undefined,
-            accuracy: undefined,
-            started: undefined,
-            pathLength: undefined
+            pathLayer: undefined, // polyline
+            accuracyLayer: L.featureGroup(), // track nodes accuracy
+            pathLength: 0
         };
         map.track.init = function(map) {
-            if (map.hasLayer(this.accuracy)) {
-                map.removeLayer(this.accuracy);
-                this.accuracy = undefined;
+            if (map.hasLayer(this.accuracyLayer)) {
+                map.removeLayer(this.accuracyLayer);
             }
-            if (map.hasLayer(this.path)) {
-                map.removeLayer(this.path);
-                this.path = undefined;
+            if (map.hasLayer(this.pathLayer)) {
+                map.removeLayer(this.pathLayer);
             }
-            this.path = L.polyline([], {weight: 2, color: "red"}).addTo(map);
-            this.accuracy = L.featureGroup();
-            map.addLayer(this.accuracy);
+            this.pathLayer = L.polyline([], {weight: 2, color: "red"}).addTo(map);
+            this.accuracyLayer = L.featureGroup();
+            if (map.showAccuracy)
+                map.addLayer(this.accuracyLayer);
             this.pathLength = 0;
         };
         map.onMarkerClick = function(e) {
@@ -261,20 +271,20 @@
                 this.trackMarker(marker);
             }
         };
-        map.setMarker = function(point, icon) {
+        map.setMarker = function(loc, icon) {
             icon = icon || T.icons.active;
-            var marker = this.markers[point.id];
+            var marker = this.markers[loc.id];
             if (!this.isLoaded && this.markers.length === 0)
-                this.setView(point.latlng, this.options.zoom);
+                this.setView(loc.latlng, this.options.zoom);
             if (!marker) {
-                marker = L.marker(point.latlng, {icon: icon, alt: point.id});
+                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
                 marker.on('click', function(e) {
                     map.onMarkerClick(e);
                 });
                 marker.addTo(this);
-                marker.accuracy = L.circle(point.latlng, point.accuracy,
-                        {weight: 1, color: "blue"}).addTo(this);
-                this.markers[point.id] = marker;
+                marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
+                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
+                this.markers[loc.id] = marker;
             } else
                 marker.setIcon(icon);
             return marker;
@@ -282,37 +292,37 @@
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
-                var pln = this.track.path.getLatLngs();
+                var pln = this.track.pathLayer.getLatLngs();
                 var dst = (pln.length > 0 ?
                         T.distanceBetween(pos, pln[pln.length - 1]) : 0);
                 this.track.pathLength += dst;
                 if (pln.length === 0 || dst >= T.options.minDistance) {
-                    this.track.path.addLatLng(pos);
-                    L.circle(pos, marker.accuracy.getRadius(),
-                            {weight: 1, color: "blue"}).addTo(this.track.accuracy);
+                    this.track.pathLayer.addLatLng(pos);
+                    L.circle(pos, marker.accuracyCircle.getRadius(),
+                            {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
                 }
                 this.setView(pos, this.getZoom());
                 this.UI.infoPane.update({
-                    id: marker.options.alt,
+                    id: marker.location.id,
                     trackLength: this.track.pathLength,
-                    timestamp: Date.now(),
-                    accuracy: marker.accuracy.getRadius()
+                    timestamp: marker.location.timestamp,
+                    accuracy: marker.location.accuracy
                 });
             }
         };
-        map.moveMarker = function(point) {
-            var marker = this.markers[point.id];
+        map.moveMarker = function(loc) {
+            var marker = this.markers[loc.id];
             if (!marker)
-                marker = this.setMarker(point);
+                marker = this.setMarker(loc);
             else {
-                marker.setLatLng(point.latlng);
-                marker.accuracy.setLatLng(point.latlng);
-                marker.accuracy.setRadius(point.accuracy);
+                marker.setLatLng(loc.latlng);
+                marker.accuracyCircle.setLatLng(loc.latlng);
+                marker.accuracyCircle.setRadius(loc.accuracy);
                 this.trackMarker(marker);
             }
-            marker.point = point;
+            marker.location = loc;
         };
-        map.removeMarker = function(point) {
+        map.removeMarker = function(loc) {
 
         };
         map.UI = {
@@ -324,26 +334,35 @@
                 map.UI.infoPane = new (L.Control.extend({
                     options: {
                         position: 'bottomleft',
-                        infoData: {id: {nick: 'Track', unit: ''},
+                        infoData: {id: {nick: 'Track ', unit: ':'},
                             trackLength: {nick: 'Dist', unit: 'm'},
                             trackTime: {nick: 'Time', unit: ''},
-                            timestamp: {nick: 'TME', unit: ''},
-                            speed: {nick: 'SPD', unit: 'm/sec'},
-                            accuracy: {nick: 'ACC', unit: 'm'}
+                            timestamp: {nick: 'Time', unit: ''},
+                            speed: {nick: 'Speed', unit: 'm/sec'},
+                            accuracy: {nick: 'Acc', unit: 'm'}
                         }
                     },
                     onAdd: function(map) {
-                        var pane = L.DomUtil.create('div', 'tracker-pane');
-                        var tbl = L.DomUtil.create('table', 'tracker-info-table', pane)
-                                , row, el;
+                        var pane = L.DomUtil.create('div', 'tracker-pane')
+                                , tbl, tbl1, row, el;
+                        el = L.DomUtil.create('div', 'tracker-info-header', pane);
+                        this.options.infoData.id.element = el;
+                        tbl = L.DomUtil.create('table', 'tracker-info-table', pane);
+                        el = L.DomUtil.create('div', 'tracker-info-header', pane);
+                        el.innerHTML = 'Location:';
+                        tbl1 = L.DomUtil.create('table', 'tracker-info-table', pane)
                         for (var key in this.options.infoData) {
+                            if (key === 'id')
+                                continue;
+                            if (key === 'timestamp')
+                                tbl = tbl1;
                             row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
-                            el = L.DomUtil.create('td', 'tracker-info-cell', row);
+                            el = L.DomUtil.create('td', 'tracker-info-nick', row);
                             el.innerHTML = this.options.infoData[key].nick;
-                            el = L.DomUtil.create('td', 'tracker-info-cell', row);
+                            el = L.DomUtil.create('td', 'tracker-info-value', row);
                             this.options.infoData[key].element = el;
                         }
-// https://stackoverflow.com/questions/33146809/find-out-if-a-leaflet-control-has-already-been-added-to-the-map                
+
                         el = this.options.infoData.trackTime.element;
                         el.innerHTML = '00:00:00';
                         this.options.timer = setInterval(function(element, startTime) {
@@ -364,6 +383,7 @@
                             var value = info[key];
                             switch (key) {
                                 case 'id':
+                                    value = this.options.infoData[key].nick + value;
                                     break;
                                 case 'timestamp' :
                                     value = (new Date(value)).toTimeString()
@@ -408,10 +428,10 @@
                 map.UI.controlPane = new (L.Control.extend({
                     options: {position: 'topright',
                         buttons: {
-  //                          btnMenu: {img: './images/btn_menu.png', onclick: undefined},
-                            btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e){
+                            // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
+                            btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e) {
                                     map.toggleAccuracy();
-                            }},
+                                }},
                             btnBound: {img: './images/btn_bound.png', onclick: function(e) {
                                     map.boundMarkers();
                                 }},
@@ -421,13 +441,10 @@
                         }
                     },
                     onAdd: function(map) {
-                        var pane = L.DomUtil.create('div', 'tracker-pane');
-                        var tbl = L.DomUtil.create('table', 'tracker-button-table', pane)
-                                , row, cell, btn;
+                        var pane = L.DomUtil.create('div', 'buttons-pane'), div, btn;
                         for (var key in this.options.buttons) {
-                            row = L.DomUtil.create('tr', 'tracker-button-row', tbl);
-                            cell = L.DomUtil.create('td', 'tracker-button-cell', row);
-                            btn = L.DomUtil.create('img', 'tracker-button', cell);
+                            div = L.DomUtil.create('div', 'tracker-button', pane);
+                            btn = L.DomUtil.create('img', 'tracker-button', div);
                             btn.src = this.options.buttons[key].img;
                             if (this.options.buttons[key].onclick)
                                 btn.onclick = this.options.buttons[key].onclick;
@@ -509,15 +526,15 @@
             p.timestamp = Date.now();
             return p;
         },
-        sendPoint: function(p) {
+        sendLocation: function(p) {
             T.onAction(JSON.stringify(p));
         },
         run: function(delay, latlng) { // milliseconds, initial position
             if (this.isRunning)
                 return;
             for (var i = 0; i < 5; i++) {
-                var p = new T.Point();
-                p.action = 'point';
+                var p = new T.Location();
+                p.action = 'location';
                 p.id = 'Demo ' + (i + 1);
                 p.latlng = latlng ? latlng : L.latLng(51.505, -0.09);
                 p.timeout = delay;
@@ -525,7 +542,7 @@
             }
             setInterval(function(d) {
                 for (var i = 0; i < d.demos.length; i++)
-                    d.sendPoint(d.moveRandom(d.demos[i]));
+                    d.sendLocation(d.moveRandom(d.demos[i]));
             }, delay, this); //!IE9
             this.isRunning = true;
         }
