@@ -15,8 +15,8 @@
         },
         options: {
             timeout: 30000,
-            maxAge: 20000,
-            minDistance: 20
+            maxAge: 27000,
+            minDistance: 40
         },
         locale: {
             itsme: "It's me."
@@ -34,6 +34,13 @@
         for (var key in opts)
             if (key in obj)
                 obj[key] = opts[key];
+        return obj;
+    };
+    T.latLng = function(obj) {
+        if (Array.isArray(obj.latlng))
+            obj.latlng = {lat: obj.latlng[0], lng: obj.latlng[1]};
+        else if ('latitude' in obj && 'longitude' in obj)
+            obj.latlng = {lat: obj.latitude, lng: obj.longitude};
         return obj;
     };
     T.makeIcon = function(url, isz) {
@@ -64,55 +71,30 @@
             this.onLocation(obj);
         }
     };
-    T.onLocation = function(p) {
-        if (!this.locations[p.id]) {
-            this.locations[p.id] = p;
+    T.onLocation = function(loc) {
+        if (!this.locations[loc.id]) {
+            this.locations[loc.id] = loc;
         }
-        this.map.moveMarker(p);
+        this.map.moveMarker(loc);
     };
     T.removeInactive = function() {
 
     };
-    T.checkWebSocket = function() {
-        if (this.search.ws) {
-//var wsurl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://')+this.search.ws;
-            var wsurl = 'wss://' + this.search.ws;
-            try {
-                T.webSocket = new WebSocket(wsurl);
-                T.webSocket.onmessage = function(m) {
-                    T.onAction(m);
-                };
-                T.webSocket.onopen = function(e) {
-                    T.sendMessage = function(m) {
-                        T.webSocket.send(m);
-                    };
-                    console.log('WebSocket open');
-                };
-                T.webSocket.onclose = function(e) {
-                    console.log("WebSocket close");
-                };
-                T.webSocket.onerror = function(e) {
-                    console.log(e.message);
-                };
-            } catch (e) {
-                console.log(e.message);
-            }
-        }
-    };
+
     T.onLocationFound = function(l) {
-        var p = new T.Location();
-        T.update(p, l.coords);
-        p.id = T.locale.itsme;
-        p.latlng = L.latLng(l.coords.latitude, l.coords.longitude);
-        p.timestamp = l.timestamp;
-        p.timeout = T.options.maxAge;
-        if (!this.locations[p.id])
-            this.map.setMarker(p, this.icons.own);
-        this.onLocation(p);
+        var loc = new T.Location();
+        T.update(loc, T.latLng(l.coords));
+        loc.id = T.locale.itsme;
+        loc.timestamp = l.timestamp;
+        loc.timeout = T.options.timeout;
+        if (!this.locations[loc.id])
+            this.map.setMarker(loc, this.icons.own);
+        else if (this.locations[loc.id].timestamp < loc.timestamp)
+            this.onLocation(loc);
     };
     T.onLocationError = function(e) {
         console.log('Geolocation: ' + e.message);
-//        this.stopLocation();
+        this.map.UI.consolePane.log(e.message);
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
@@ -129,18 +111,43 @@
             this.stopLocation();
         this.watchId = navigator.geolocation.watchPosition(
                 onLocation, onError, options);
-
-        /*           clearTimeout(watchId);
-         watchId = setInterval(function(onLocation, onError, options) {
-         navigator.geolocation.getCurrentLocation(onLocation, onError, options);
-         }, options.timeout, onLocation, onError, options);
-         */    };
+    };
     T.stopLocation = function() {
         if (this.watchId) {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = undefined;
         }
     };
+
+    T.checkWebSocket = function() {
+        if (this.search.ws) {
+            var wsurl = (window.location.protocol === 'https:' ?
+                    'wss://' : 'ws://') + this.search.ws;
+//            var wsurl = 'wss://' + this.search.ws;
+            try {
+                T.webSocket = new WebSocket(wsurl);
+                T.webSocket.onmessage = function(m) {
+                    T.onAction(m);
+                };
+                T.webSocket.onopen = function(e) {
+                    T.sendMessage = function(m) {
+                        T.webSocket.send(m);
+                    };
+                    console.log('WebSocket open');
+                };
+                T.webSocket.onclose = function(e) {
+                    console.log("WebSocket close");
+                };
+                T.webSocket.onerror = function(e) {
+                    T.map.UI.consolePane.log(e.message);
+                    console.log(e.message);
+                };
+            } catch (e) {
+                console.log(e.message);
+            }
+        }
+    };
+
     T.testMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.search.mode));
     };
@@ -185,12 +192,12 @@
          var Δφ = (lat2 - lat1).toRadians();
          var Δλ = (lon2 - lon1).toRadians();
          */
-        latlngA = ('lat' in latlngA) ? [latlngA.lat, latlngA.lng] : latlngA;
-        latlngB = ('lat' in latlngB) ? [latlngB.lat, latlngB.lng] : latlngB;
-        var φ1 = latlngA[0] * Math.PI / 180;
-        var φ2 = latlngB[0] * Math.PI / 180;
-        var Δφ = (latlngB[0] - latlngA[0]) * Math.PI / 180;
-        var Δλ = (latlngB[1] - latlngA[1]) * Math.PI / 180;
+        latlngA = (Array.isArray(latlngA)) ? {lat: latlngA[0], lng: latlngA[1]} : latlngA;
+        latlngB = (Array.isArray(latlngB)) ? {lat: latlngB[0], lng: latlngB[1]} : latlngB;
+        var φ1 = latlngA.lat * Math.PI / 180;
+        var φ2 = latlngB.lat * Math.PI / 180;
+        var Δφ = (latlngB.lat - latlngA.lat) * Math.PI / 180;
+        var Δλ = (latlngB.lng - latlngA.lng) * Math.PI / 180;
 
         var a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
                 Math.cos(φ1) * Math.cos(φ2) *
@@ -306,6 +313,10 @@
                     id: marker.location.id,
                     trackLength: this.track.pathLength,
                     timestamp: marker.location.timestamp,
+                    speed: marker.location.speed,
+                    altitude: marker.location.altitude,
+                    heading: marker.location.heading,
+                    movement: dst,
                     accuracy: marker.location.accuracy
                 });
             }
@@ -335,11 +346,14 @@
                     options: {
                         position: 'bottomleft',
                         infoData: {id: {nick: 'Track ', unit: ':'},
-                            trackLength: {nick: 'Dist', unit: 'm'},
-                            trackTime: {nick: 'Time', unit: ''},
-                            timestamp: {nick: 'Time', unit: ''},
-                            speed: {nick: 'Speed', unit: 'm/sec'},
-                            accuracy: {nick: 'Acc', unit: 'm'}
+                            trackLength: {nick: 'DST', unit: 'm'},
+                            trackTime: {nick: 'TTM', unit: ''},
+                            timestamp: {nick: 'TME', unit: ''},
+                            speed: {nick: 'SPD', unit: 'm/sec'},
+                            altitude: {nick:'ALT',unit: 'm'},
+                            movement: {nick: 'MVT',unit:'m'},
+                            heading:{nick: 'HDN', unit: 'deg'},
+                            accuracy: {nick: 'ACC', unit: 'm'}
                         }
                     },
                     onAdd: function(map) {
@@ -350,7 +364,7 @@
                         tbl = L.DomUtil.create('table', 'tracker-info-table', pane);
                         el = L.DomUtil.create('div', 'tracker-info-header', pane);
                         el.innerHTML = 'Location:';
-                        tbl1 = L.DomUtil.create('table', 'tracker-info-table', pane)
+                        tbl1 = L.DomUtil.create('table', 'tracker-info-table', pane);
                         for (var key in this.options.infoData) {
                             if (key === 'id')
                                 continue;
