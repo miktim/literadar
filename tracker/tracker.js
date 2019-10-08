@@ -16,7 +16,7 @@
         options: {
             timeout: 30000,
             maxAge: 27000,
-            minDistance: 40
+            minDistance: 30
         },
         locale: {
             itsme: "It's me."
@@ -89,8 +89,8 @@
         loc.timeout = T.options.timeout;
         if (!this.locations[loc.id])
             this.map.setMarker(loc, this.icons.own);
-        else if (this.locations[loc.id].timestamp < loc.timestamp)
-            this.onLocation(loc);
+//        else if (this.locations[loc.id].timestamp < loc.timestamp)
+        this.onLocation(loc);
     };
     T.onLocationError = function(e) {
         console.log('Geolocation: ' + e.message);
@@ -350,9 +350,9 @@
                             trackTime: {nick: 'TTM', unit: ''},
                             timestamp: {nick: 'TME', unit: ''},
                             speed: {nick: 'SPD', unit: 'm/sec'},
-                            altitude: {nick:'ALT',unit: 'm'},
-                            movement: {nick: 'MVT',unit:'m'},
-                            heading:{nick: 'HDN', unit: 'deg'},
+                            altitude: {nick: 'ALT', unit: 'm'},
+                            movement: {nick: 'MVT', unit: 'm'},
+                            heading: {nick: 'HDN', unit: 'deg'},
                             accuracy: {nick: 'ACC', unit: 'm'}
                         }
                     },
