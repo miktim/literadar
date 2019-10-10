@@ -1,14 +1,8 @@
 /* 
- * LiteRadar tracker rev 191004
+ * LiteRadar tracker rev 191009
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
 .tracker-pane{
-    /*    z-index: 300;
-        float: left;
-        max-width: 265px; 
-        height: 20px;
-        margin: 12px;
-        padding: 10px; */
     border: 2px solid darkgrey;
     border-radius: 5px;
     box-shadow: 0 0 2px grey;
@@ -46,6 +40,8 @@
 div.tracker-button{
     margin-bottom:5px;
     background-color: black;
+    border-radius: 5px;
+    border: 1px solid black;
 }
 img.tracker-button{
     -webkit-filter: invert(1);
@@ -55,7 +51,5 @@ img.tracker-button{
     width: 36px;
     height: 36px;
     vertical-align: middle;
-    /*    border-radius: 6px;
-    border: 1px solid black;*/
     cursor: pointer;
 }

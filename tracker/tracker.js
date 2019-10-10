@@ -1,27 +1,28 @@
 /* 
- * LiteRadar tracker rev 191008
+ * LiteRadar tracker rev 191010
  * (c) 2019 miktim@mail.ru CC-BY-SA
+ * leaflet 1.0.1+ required
  */
 
 (function(window, document) {
     T = {
-        version: '0.1.0',
+        version: '0.0.1',
         isSmart: (screen.width > 500) ? false : true,
-// http search example: ?mode=watch,demo&ws=localhost:10090&watch=60:15:20        
+// http search       
         search: {
             mode: '', // [watch], nowatch, demo
-            watch: '', //timeout(sec):maxAge(sec):minDistance(meters)
-            ws: ''// websocket address
+            watch: '',// timeout(sec):maxAge(sec):minDistance(meters)
+            ws: ''    // websocket address
         },
         options: {
-            timeout: 30000,
-            maxAge: 27000,
-            minDistance: 30
+            timeout: 180000, // 3 min
+            maxAge: 120000, // 2 min
+            minDistance: 30  // 30 meters (single track movement)
         },
         locale: {
-            itsme: "It's me."
+            itsmeId: "It's me."
         },
-        locations: {},
+        locations: [],
         icons: {
             own: undefined,
             active: undefined,
@@ -57,6 +58,7 @@
 
     T.Location = function() {
         this.id = '';         // unique source id (string)
+        this.itsme = false;
         this.latlng = undefined;     // {lat, lng}
         this.accuracy = NaN;  // meters (radius)
         this.speed = NaN;     // meters per second
@@ -65,41 +67,25 @@
         this.timestamp = NaN; // acquired time in milliseconds
         this.timeout = NaN;   // lifetime in milliseconds
     };
-    T.onAction = function(m) {
-        var obj = JSON.parse(m);
-        if (obj.action === "location") {
-            this.onLocation(obj);
-        }
-    };
-    T.onLocation = function(loc) {
-        if (!this.locations[loc.id]) {
-            this.locations[loc.id] = loc;
-        }
-        this.map.moveMarker(loc);
-    };
-    T.removeInactive = function() {
-
-    };
 
     T.onLocationFound = function(l) {
         var loc = new T.Location();
+        loc.id = T.locale.itsmeId;
+        loc.itsme = true;
         T.update(loc, T.latLng(l.coords));
-        loc.id = T.locale.itsme;
         loc.timestamp = l.timestamp;
         loc.timeout = T.options.timeout;
-        if (!this.locations[loc.id])
-            this.map.setMarker(loc, this.icons.own);
-//        else if (this.locations[loc.id].timestamp < loc.timestamp)
         this.onLocation(loc);
     };
     T.onLocationError = function(e) {
-        console.log('Geolocation: ' + e.message);
+        e.message = 'Geolocation: ' + e.message;
+        console.log(e.message);
         this.map.UI.consolePane.log(e.message);
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.watchId;
-    T.watchLocation = function(onLocation, onError, options) {
+    T.watchLocation = function(onLocationFound, onLocationError, options) {
         if (!('geolocation' in navigator)) {
             onError({
                 code: 0,
@@ -108,17 +94,31 @@
             return;
         }
         if (this.watchId)
-            this.stopLocation();
+            this.stopLocationWatch();
         this.watchId = navigator.geolocation.watchPosition(
-                onLocation, onError, options);
+                onLocationFound, onLocationError, options);
     };
-    T.stopLocation = function() {
+    T.stopLocationWatch = function() {
         if (this.watchId) {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = undefined;
         }
     };
+    T.onLocation = function(loc) {
+        if (!this.map.isLoaded && this.locations.length === 0)
+            this.map.setView(loc.latlng, this.map.options.zoom);
+        if (!this.locations[loc.id]) {
+            this.locations[loc.id] = loc;
+        }
+        this.map.setMarker(loc);
+    };
 
+    T.onAction = function(m) {
+        var obj = JSON.parse(m);
+        if (obj.action === "location") {
+            this.onLocation(obj);
+        }
+    };
     T.checkWebSocket = function() {
         if (this.search.ws) {
             var wsurl = (window.location.protocol === 'https:' ?
@@ -177,35 +177,25 @@
         if (this.testMode('demo'))
             this.demo.run(5000, latlng);
     };
+    T.expirationTimer;
+    T.checkExpiredLocations = function() {
+        if (!this.expirationTimer) {
+            this.expirationTimer = setInterval(function() {
+                for (var id in T.locations) {
+                    if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
+                        T.map.setMarkerIcon(T.locations[id], T.icons.inactive);
+                }
+            }, 60000);
+        }
+    };
     T.run = function(opts, mapId, latlng) {
         T.update(this.search, opts);
         this.map = this._map(mapId, latlng);
         this.checkWebSocket();
         this.checkWatchMode();
+        this.checkExpiredLocations();
     };
-// http://www.movable-type.co.uk/scripts/latlong.html
-    T.distanceBetween = function(latlngA, latlngB) {
-        var R = 6371010; // Earth radius in meters
-        /*
-         var φ1 = lat1.toRadians();
-         var φ2 = lat2.toRadians();
-         var Δφ = (lat2 - lat1).toRadians();
-         var Δλ = (lon2 - lon1).toRadians();
-         */
-        latlngA = (Array.isArray(latlngA)) ? {lat: latlngA[0], lng: latlngA[1]} : latlngA;
-        latlngB = (Array.isArray(latlngB)) ? {lat: latlngB[0], lng: latlngB[1]} : latlngB;
-        var φ1 = latlngA.lat * Math.PI / 180;
-        var φ2 = latlngB.lat * Math.PI / 180;
-        var Δφ = (latlngB.lat - latlngA.lat) * Math.PI / 180;
-        var Δλ = (latlngB.lng - latlngA.lng) * Math.PI / 180;
 
-        var a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
-    };
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 5,
@@ -268,50 +258,34 @@
             if (this.track.marker === marker) {
                 this.track.marker = undefined;
                 if (this.infoPane)
-                    this.UI.infoPane.removeFrom(this);
+                    this.UI.infoPane.remove(); // removeFrom(this); //0.7.0
             } else {
                 this.track.init(this);
-                this.track.started = Date.now();
+                this.track.started = marker.location.timestamp;
                 if (!this.infoPane)
                     this.UI.infoPane.addTo(this);
                 this.track.marker = marker;
                 this.trackMarker(marker);
             }
         };
-        map.setMarker = function(loc, icon) {
-            icon = icon || T.icons.active;
-            var marker = this.markers[loc.id];
-            if (!this.isLoaded && this.markers.length === 0)
-                this.setView(loc.latlng, this.options.zoom);
-            if (!marker) {
-                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
-                marker.on('click', function(e) {
-                    map.onMarkerClick(e);
-                });
-                marker.addTo(this);
-                marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
-                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
-                this.markers[loc.id] = marker;
-            } else
-                marker.setIcon(icon);
-            return marker;
-        };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
                 var pln = this.track.pathLayer.getLatLngs();
                 var dst = (pln.length > 0 ?
-                        T.distanceBetween(pos, pln[pln.length - 1]) : 0);
-                this.track.pathLength += dst;
+// flat distance() leaflet 1.0.1+                  
+                        this.distance(pos, pln[pln.length - 1]) : 0);
                 if (pln.length === 0 || dst >= T.options.minDistance) {
                     this.track.pathLayer.addLatLng(pos);
                     L.circle(pos, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
+                    this.track.pathLength += dst;
                 }
                 this.setView(pos, this.getZoom());
                 this.UI.infoPane.update({
                     id: marker.location.id,
                     trackLength: this.track.pathLength,
+                    trackTime: marker.location.timestamp - this.track.started,
                     timestamp: marker.location.timestamp,
                     speed: marker.location.speed,
                     altitude: marker.location.altitude,
@@ -321,20 +295,32 @@
                 });
             }
         };
-        map.moveMarker = function(loc) {
+        map.setMarkerIcon = function(loc, icon) {
             var marker = this.markers[loc.id];
-            if (!marker)
-                marker = this.setMarker(loc);
-            else {
+            if (marker)
+                marker.setIcon(icon);
+        };
+        map.setMarker = function(loc, icon) {
+            icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
+            var marker = this.markers[loc.id];
+            if (!marker) {
+                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
+                marker.on('click', function(e) {
+                    map.onMarkerClick(e);
+                });
+                marker.addTo(this);
+                marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
+                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
+                this.markers[loc.id] = marker;
+            } else {
                 marker.setLatLng(loc.latlng);
                 marker.accuracyCircle.setLatLng(loc.latlng);
                 marker.accuracyCircle.setRadius(loc.accuracy);
+                marker.setIcon(icon);
                 this.trackMarker(marker);
             }
             marker.location = loc;
-        };
-        map.removeMarker = function(loc) {
-
+            return marker;
         };
         map.UI = {
             infoPane: undefined,
@@ -352,7 +338,7 @@
                             speed: {nick: 'SPD', unit: 'm/sec'},
                             altitude: {nick: 'ALT', unit: 'm'},
                             movement: {nick: 'MVT', unit: 'm'},
-                            heading: {nick: 'HDN', unit: 'deg'},
+                            heading: {nick: 'HDN', unit: '&deg'},
                             accuracy: {nick: 'ACC', unit: 'm'}
                         }
                     },
@@ -377,17 +363,10 @@
                             this.options.infoData[key].element = el;
                         }
 
-                        el = this.options.infoData.trackTime.element;
-                        el.innerHTML = '00:00:00';
-                        this.options.timer = setInterval(function(element, startTime) {
-                            element.innerHTML = ((new Date(Date.now() - startTime))
-                                    .toISOString().substring(11, 19));
-                        }, 30000, el, Date.now());
                         map.infoPane = this;
                         return pane;
                     },
                     onRemove: function(map) {
-                        clearInterval(map.infoPane.options.timer);
                         delete map.infoPane;
                     },
                     update: function(info) {
@@ -403,10 +382,15 @@
                                     value = (new Date(value)).toTimeString()
                                             .substring(0, 8);
                                     break;
+                                case 'trackTime' :
+                                    value = (new Date(value)).toISOString()
+                                            .substring(11, 19)
+                                    break;
                                 default:
                                     value = Math.round(value).toString();
                             }
-                            this.options.infoData[key].element.innerHTML = value;
+                            this.options.infoData[key].element.innerHTML =
+                                    value + ' ' + this.options.infoData[key].unit;
                         }
                     }
                 }));
@@ -514,23 +498,24 @@
             return (Math.random() * (maxDbl - minDbl)) + minDbl;
         },
 // http://www.movable-type.co.uk/scripts/latlong.html
-        pointRadialDistance: function(latlng, degreeBearing, radialDistance) {
-            var R = 6371.01; // Earth radius km
-            var d = radialDistance / 1000; // distance km
-            var brng = (degreeBearing % 360) * Math.PI / 180; //degree bearing to radiant bearing
-            latlng = (Array.isArray(latlng)) ? {lat: latlng[0], lng: latlng[1]} : latlng;
-            var φ1 = latlng.lat * Math.PI / 180; // latitude to radiant
-            var λ1 = latlng.lng * Math.PI / 180; // longitude to radiant
-            var φ2 = Math.asin(Math.sin(φ1) * Math.cos(d / R) +
-                    Math.cos(φ1) * Math.sin(d / R) * Math.cos(brng));
+        radialDistance: function(latlng, heading, distance) {
+            var R = 6371010; // Earth radius m
+            var d = distance; // distance m
+            var RpD = Math.PI / 180; // radians per degree
+            var brng = (heading % 360) * RpD; // degree heading to radiant 
+            var φ1 = latlng.lat * RpD; // latitude to radiant
+            var λ1 = latlng.lng * RpD; // longitude to radiant
+            var φ2 = Math.asin((Math.sin(φ1) * Math.cos(d / R)) +
+                    (Math.cos(φ1) * Math.sin(d / R) * Math.cos(brng)));
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
                     Math.cos(d / R) - Math.sin(φ1) * Math.sin(φ2));
-            return {lat: φ2 * 180 / Math.PI, lng: ((λ2 * 180 / Math.PI) + 540) % 360 - 180};
+            return {lat: φ2 / RpD , lng: ((λ2 / RpD) + 540) % 360 - 180};
+//???? latitude
         },
         moveRandom: function(p) {
             p.heading = this.randDbl(0, 180);
             var dst = this.randDbl(10, 50);
-            p.latlng = this.pointRadialDistance(
+            p.latlng = this.radialDistance(
                     p.latlng,
                     p.heading,
                     dst
@@ -562,9 +547,3 @@
         }
     };
 }(window, document));
-
-
-
-
-
-
