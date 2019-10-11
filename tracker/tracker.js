@@ -15,9 +15,9 @@
             ws: ''    // websocket address
         },
         options: {
-            timeout: 180000, // 3 min
-            maxAge: 120000, // 2 min
-            minDistance: 30  // 30 meters (single track movement)
+            timeout: 360000, // 6 min
+            maxAge: 300000,  // 5 min
+            minDistance: 30  // 30 meters (minimal track line segment)
         },
         locale: {
             itsmeId: "It's me."
