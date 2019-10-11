@@ -11,7 +11,7 @@
 // http search       
         search: {
             mode: '', // [watch], nowatch, demo
-            watch: '',// timeout(sec):maxAge(sec):minDistance(meters)
+            watch: '', // timeout(sec):maxAge(sec):minDistance(meters)
             ws: ''    // websocket address
         },
         options: {
@@ -185,7 +185,7 @@
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerIcon(T.locations[id], T.icons.inactive);
                 }
-            }, 60000);
+            }, Math.max(60000,T.options.timeout));
         }
     };
     T.run = function(opts, mapId, latlng) {
@@ -201,6 +201,7 @@
             minZoom: 5,
             zoom: 17,
             zoomControl: false
+//            crs: L.CRS.EPSG3395
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
@@ -384,7 +385,7 @@
                                     break;
                                 case 'trackTime' :
                                     value = (new Date(value)).toISOString()
-                                            .substring(11, 19)
+                                            .substring(11, 19);
                                     break;
                                 default:
                                     value = Math.round(value).toString();
@@ -466,7 +467,6 @@
         });
 
         map.UI.init(map);
-        map.UI.consolePane.log('Expect location...', 100000);
         if (latlng)
             map.setView(latlng, this.options.zoom);
         else {
@@ -478,7 +478,8 @@
                 console.log(e.message);
                 T.checkDemoMode();
             });
-            map.locate({setView: false}); // no load event
+            map.UI.consolePane.log('Expect location...', T.options.timeout);
+            map.locate({setView: false, timeout: T.options.timeout}); // no load event
         }
         return map;
     };
@@ -509,7 +510,7 @@
                     (Math.cos(φ1) * Math.sin(d / R) * Math.cos(brng)));
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
                     Math.cos(d / R) - Math.sin(φ1) * Math.sin(φ2));
-            return {lat: φ2 / RpD , lng: ((λ2 / RpD) + 540) % 360 - 180};
+            return {lat: φ2 / RpD, lng: ((λ2 / RpD) + 540) % 360 - 180};
 //???? latitude
         },
         moveRandom: function(p) {
