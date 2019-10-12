@@ -1,7 +1,7 @@
 # tracker rev 191010
 
 Demo (the wonderful ideal world): 
-  https://miktim.github.io/literadar/tracker/tracker.html?mode=demo,nowatch
+  https://miktim.github.io/literadar/tracker?mode=demo,nowatch
 
 URL query parameters:
   mode  (mode=watch)
