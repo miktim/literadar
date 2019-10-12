@@ -16,7 +16,7 @@
         },
         options: {
             timeout: 240000, // 4 min
-            maxAge: 60000,  // 1 min
+            maxAge: 60000, // 1 min
             minDistance: 30  // 30 meters (minimal track line segment)
         },
         locale: {
@@ -59,13 +59,13 @@
     T.Location = function() {
         this.id = '';         // unique source id (string)
         this.itsme = false;
-        this.latlng = undefined;     // {lat, lng}
+        this.latlng = undefined;  // {lat, lng} WGS84
         this.accuracy = NaN;  // meters (radius)
         this.speed = NaN;     // meters per second
         this.altitude = NaN;  // meters
         this.heading = NaN;   // degrees counting clockwise from true North
         this.timestamp = NaN; // acquired time in milliseconds
-        this.timeout = NaN;   // lifetime in milliseconds
+        this.timeout = NaN;   // lifetime in milliseconds?
     };
 
     T.onLocationFound = function(l) {
@@ -185,7 +185,7 @@
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerIcon(T.locations[id], T.icons.inactive);
                 }
-            }, Math.max(60000,T.options.timeout));
+            }, Math.max(60000, T.options.timeout));
         }
     };
     T.run = function(opts, mapId, latlng) {
@@ -478,8 +478,8 @@
                 console.log(e.message);
                 T.checkDemoMode();
             });
-            map.UI.consolePane.log('Expect location...');//, T.options.timeout);
-            map.locate({setView: false, timeout: T.options.timeout}); // no load event
+            map.UI.consolePane.log('Expect location...', 240000);
+            map.locate({setView: false}); // no load event
         }
         return map;
     };
