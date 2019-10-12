@@ -7,7 +7,7 @@ URL query parameters:
   mode  (mode=watch)
     demo
     nowatch - disable watching your own location
-  watch (watch=360:300:30)
+  watch (watch=240:60:30) may vary, see tracker.js
     watch_timeout(sec):watch_maximumAge(sec):minimal_track_segment_length(m)
   ws (none)
     WebSocket server address:port

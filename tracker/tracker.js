@@ -15,8 +15,8 @@
             ws: ''    // websocket address
         },
         options: {
-            timeout: 360000, // 6 min
-            maxAge: 300000,  // 5 min
+            timeout: 240000, // 4 min
+            maxAge: 60000,  // 1 min
             minDistance: 30  // 30 meters (minimal track line segment)
         },
         locale: {
@@ -478,7 +478,7 @@
                 console.log(e.message);
                 T.checkDemoMode();
             });
-            map.UI.consolePane.log('Expect location...', T.options.timeout);
+            map.UI.consolePane.log('Expect location...');//, T.options.timeout);
             map.locate({setView: false, timeout: T.options.timeout}); // no load event
         }
         return map;
