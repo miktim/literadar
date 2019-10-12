@@ -1,0 +1,16 @@
+# tracker rev 191010
+
+Demo (the wonderful ideal world): 
+  https://miktim.github.io/literadar/tracker/tracker.html?mode=demo,nowatch
+
+URL query parameters:
+  mode  (mode=watch)
+    demo
+    nowatch - disable watching your own location
+  watch (watch=360:300:30)
+    watch_timeout(sec):watch_maximumAge(sec):minimal_track_segment_length(m)
+  ws (none)
+    WebSocket server address:port
+    Note: for http - ws; for https - wss.
+
+Query example: ?watch=::20&ws=localhost:10090
