@@ -15,8 +15,8 @@
             ws: ''    // websocket address
         },
         options: {
-            timeout: 240000, // 4 min
-            maxAge: 60000, // 1 min
+            timeout: 280000, // ~5 min
+            maxAge: 68000, // ~1 min
             minDistance: 30  // 30 meters (minimal track line segment)
         },
         locale: {
@@ -113,7 +113,7 @@
         this.map.setMarker(loc);
     };
 
-    T.onAction = function(m) {
+    T.onExternalAction = function(m) {
         var obj = JSON.parse(m);
         if (obj.action === "location") {
             this.onLocation(obj);
@@ -127,7 +127,7 @@
             try {
                 T.webSocket = new WebSocket(wsurl);
                 T.webSocket.onmessage = function(m) {
-                    T.onAction(m);
+                    T.onExternalAction(m);
                 };
                 T.webSocket.onopen = function(e) {
                     T.sendMessage = function(m) {
@@ -283,15 +283,16 @@
                     this.track.pathLength += dst;
                 }
                 this.setView(pos, this.getZoom());
+
                 this.UI.infoPane.update({
                     id: marker.location.id,
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
+                    movement: dst,
                     timestamp: marker.location.timestamp,
                     speed: marker.location.speed,
                     altitude: marker.location.altitude,
                     heading: marker.location.heading,
-                    movement: dst,
                     accuracy: marker.location.accuracy
                 });
             }
@@ -500,7 +501,7 @@
         },
 // http://www.movable-type.co.uk/scripts/latlong.html
         radialDistance: function(latlng, heading, distance) {
-            var R = 6371010; // Earth radius m
+            var R = 6371010; // Earth radius m 6378140?
             var d = distance; // distance m
             var RpD = Math.PI / 180; // radians per degree
             var brng = (heading % 360) * RpD; // degree heading to radiant 
@@ -516,18 +517,14 @@
         moveRandom: function(p) {
             p.heading = this.randDbl(0, 180);
             var dst = this.randDbl(10, 50);
-            p.latlng = this.radialDistance(
-                    p.latlng,
-                    p.heading,
-                    dst
-                    );
+            p.latlng = this.radialDistance(p.latlng, p.heading, dst);
             p.speed = dst / ((Date.now() - p.timestamp) / 1000); //meters per second
             p.accuracy = this.randDbl(5, 50); //radius!
             p.timestamp = Date.now();
             return p;
         },
         sendLocation: function(p) {
-            T.onAction(JSON.stringify(p));
+            T.onExternalAction(JSON.stringify(p));
         },
         run: function(delay, latlng) { // milliseconds, initial position
             if (this.isRunning)
