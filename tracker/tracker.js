@@ -113,7 +113,7 @@
         this.map.setMarker(loc);
     };
 
-    T.onExternalAction = function(m) {
+    T.onMessage = function(m) {
         var obj = JSON.parse(m);
         if (obj.action === "location") {
             this.onLocation(obj);
@@ -127,7 +127,7 @@
             try {
                 T.webSocket = new WebSocket(wsurl);
                 T.webSocket.onmessage = function(m) {
-                    T.onExternalAction(m);
+                    T.onMessage(m);
                 };
                 T.webSocket.onopen = function(e) {
                     T.sendMessage = function(m) {
@@ -190,7 +190,7 @@
     };
     T.run = function(opts, mapId, latlng) {
         T.update(this.search, opts);
-        this.map = this._map(mapId, latlng);
+        this.map = this._map(mapId).load(latlng);
         this.checkWebSocket();
         this.checkWatchMode();
         this.checkExpiredLocations();
@@ -201,11 +201,11 @@
             minZoom: 5,
             zoom: 17,
             zoomControl: false
-//            crs: L.CRS.EPSG3395
         });
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
         map.isLoaded = false;
         map.accuracyLayer = L.featureGroup(); // markers accuracy
         map.addLayer(map.accuracyLayer);
@@ -347,6 +347,15 @@
                     onAdd: function(map) {
                         var pane = L.DomUtil.create('div', 'tracker-pane')
                                 , tbl, tbl1, row, el;
+                        pane.onclick = function(e) {
+                            var pane = map.infoPane.getContainer();
+                            if (!pane.style.marginLeft) {
+                                pane.style.marginLeft = '-120px';
+                            } else {
+                                pane.style.marginLeft = "";
+                            }
+                        };
+
                         el = L.DomUtil.create('div', 'tracker-info-header', pane);
                         this.options.infoData.id.element = el;
                         tbl = L.DomUtil.create('table', 'tracker-info-table', pane);
@@ -428,7 +437,7 @@
                 map.UI.controlPane = new (L.Control.extend({
                     options: {position: 'topright',
                         buttons: {
-                            // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
+// btnMenu: {img: './images/btn_menu.png', onclick: undefined},
                             btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e) {
                                     map.toggleAccuracy();
                                 }},
@@ -436,8 +445,9 @@
                                     map.boundMarkers();
                                 }},
                             btnLocate: {img: './images/btn_locate.png', onclick: function(e) {
-                                    map.locate({setView: true});
+                                    map.locateOwn();
                                 }}
+// btnMap: {img: './images/btn_map.png', onclick: function(e) {}}
                         }
                     },
                     onAdd: function(map) {
@@ -458,30 +468,40 @@
                 map.UI.controlPane.addTo(map);
             }
         };
-        map.onLoad = function(e) {
-            this.isLoaded = true;
-            T.checkDemoMode(this.getCenter());
-            this.UI.consolePane.log();
-        };
-        map.on('load', function(e) {
-            map.onLoad(e); // bind?
-        });
 
         map.UI.init(map);
-        if (latlng)
-            map.setView(latlng, this.options.zoom);
-        else {
-            map.on('locationfound', function(e) {
+        map.enabled = true;
+        map.load = function(latlng) {
+            this.on('load', function(e) {
+                map.isLoaded = true;
+                map.UI.consolePane.log();
+            });
+            this.on('locationfound', function(e) {
+                map.setView(e.latlng, this.options.zoom);
                 T.checkDemoMode(e.latlng);
             });
-            map.on('locationerror', function(e) {
+            this.on('locationerror', function(e) {
+                T.checkDemoMode();
                 map.UI.consolePane.log(e.message);
                 console.log(e.message);
-                T.checkDemoMode();
             });
-            map.UI.consolePane.log('Expect location...', 240000);
-            map.locate({setView: false}); // no load event
-        }
+            this.locateOwn(latlng);
+            return this;
+        };
+        map.unload = function() {
+//            this.remove();
+//            this.isLoaded = false;
+            return this;
+        };
+        map.locateOwn = function(latlng) {
+            if (latlng)
+                this.setView(latlng, this.options.zoom);
+            else {
+                this.UI.consolePane.log('Expect location...', 240000);
+                this.locate({setView: false}); // no load event
+            }
+            return this;
+        };
         return map;
     };
 
@@ -523,25 +543,30 @@
             p.timestamp = Date.now();
             return p;
         },
-        sendLocation: function(p) {
-            T.onExternalAction(JSON.stringify(p));
+        sendAllDemos: function() {
+            for (var i = 0; i < this.demos.length; i++) {
+                this.sendDemo(this.moveRandom(this.demos[i]));
+            }
+        },
+        sendDemo: function(d) {
+            T.onMessage(JSON.stringify(d));
         },
         run: function(delay, latlng) { // milliseconds, initial position
             if (this.isRunning)
                 return;
+            this.isRunning = true;
             for (var i = 0; i < 5; i++) {
                 var p = new T.Location();
                 p.action = 'location';
                 p.id = 'Demo ' + (i + 1);
-                p.latlng = latlng ? latlng : L.latLng(51.505, -0.09);
                 p.timeout = delay;
+                p.latlng = latlng ? latlng : L.latLng(51.505, -0.09);
                 this.demos[i] = this.moveRandom(p);
             }
+            this.sendAllDemos();
             setInterval(function(d) {
-                for (var i = 0; i < d.demos.length; i++)
-                    d.sendLocation(d.moveRandom(d.demos[i]));
+                d.sendAllDemos();
             }, delay, this); //!IE9
-            this.isRunning = true;
         }
     };
 }(window, document));
