@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191010
+ * LiteRadar tracker rev 191015
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -15,8 +15,8 @@
             ws: ''    // websocket address
         },
         options: {
-            timeout: 280000, // ~5 min
-            maxAge: 68000, // ~1 min
+            timeout: 300000, // 5 min
+            maxAge: 70000, // ~1 min
             minDistance: 30  // 30 meters (minimal track line segment)
         },
         locale: {
@@ -183,7 +183,7 @@
             this.expirationTimer = setInterval(function() {
                 for (var id in T.locations) {
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
-                        T.map.setMarkerIcon(T.locations[id], T.icons.inactive);
+                        T.map.setMarkerOpacity(T.locations[id], 0.4);
                 }
             }, Math.max(60000, T.options.timeout));
         }
@@ -269,6 +269,12 @@
                 this.trackMarker(marker);
             }
         };
+        
+        map.minDisplacement = function(loc) {
+// min fixed displacement proportional to speed
+            return Math.max(T.options.minDistance
+                    , T.options.minDistance * loc.speed / 1.67);
+        };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
@@ -276,7 +282,9 @@
                 var dst = (pln.length > 0 ?
 // flat distance() leaflet 1.0.1+                  
                         this.distance(pos, pln[pln.length - 1]) : 0);
-                if (pln.length === 0 || dst >= T.options.minDistance) {
+                if (pln.length === 0
+                        || dst >= this.minDisplacement(marker.location)) {
+// ???check location 'jump' (dead zone)                    
                     this.track.pathLayer.addLatLng(pos);
                     L.circle(pos, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
@@ -297,10 +305,10 @@
                 });
             }
         };
-        map.setMarkerIcon = function(loc, icon) {
+        map.setMarkerOpacity = function(loc, opacity) {
             var marker = this.markers[loc.id];
             if (marker)
-                marker.setIcon(icon);
+                marker.setOpacity(opacity);
         };
         map.setMarker = function(loc, icon) {
             icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
@@ -318,7 +326,8 @@
                 marker.setLatLng(loc.latlng);
                 marker.accuracyCircle.setLatLng(loc.latlng);
                 marker.accuracyCircle.setRadius(loc.accuracy);
-                marker.setIcon(icon);
+                marker.setMarker(icon);
+                marker.setOpacity(1);
                 this.trackMarker(marker);
             }
             marker.location = loc;
