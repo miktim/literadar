@@ -15,9 +15,9 @@
             ws: ''    // websocket address
         },
         options: {
-            timeout: 300000, // 5 min
-            maxAge: 70000, // ~1 min
-            minDistance: 30  // 30 meters (minimal track line segment)
+            timeout: 240000, // ms
+            maxAge: 600000, // ms
+            minDistance: 30  // meters (minimal track line segment)
         },
         locale: {
             itsmeId: "It's me."
@@ -221,6 +221,7 @@
                     this.removeLayer(this.track.accuracyLayer);
                 this.removeLayer(this.accuracyLayer);
             }
+            return this.showAccuracy;
         };
         map.markers = [];
         map.boundMarkers = function() {
@@ -269,7 +270,7 @@
                 this.trackMarker(marker);
             }
         };
-        
+
         map.minDisplacement = function(loc) {
 // min fixed displacement proportional to speed
             return Math.max(T.options.minDistance
@@ -447,8 +448,10 @@
                         buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
                             btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e) {
-                                    map.toggleAccuracy();
-                                }},
+//                                    map.toggleAccuracy();
+                                    e.target.parentElement.childNodes[1].hidden = !map.toggleAccuracy();
+//                                    e.target.getChildNodes[1].hidden = !map.toggleAccuracy();
+                                }, checked: true},
                             btnBound: {img: './images/btn_bound.png', onclick: function(e) {
                                     map.boundMarkers();
                                 }},
@@ -459,13 +462,19 @@
                         }
                     },
                     onAdd: function(map) {
-                        var pane = L.DomUtil.create('div', 'buttons-pane'), div, btn;
+                        var pane = L.DomUtil.create('div', 'buttons-pane')
+                                , div, btn, chk;
                         for (var key in this.options.buttons) {
                             div = L.DomUtil.create('div', 'tracker-button', pane);
                             btn = L.DomUtil.create('img', 'tracker-button', div);
                             btn.src = this.options.buttons[key].img;
                             if (this.options.buttons[key].onclick)
                                 btn.onclick = this.options.buttons[key].onclick;
+                            if ('checked' in this.options.buttons[key]) {
+                                chk = L.DomUtil.create('img', 'tracker-button-checker', div);
+                                chk.src = './images/btn_checker.png';
+                                chk.hidden = !this.options.buttons[key].checked;
+                            }
                         }
                         return pane;
                     },
@@ -478,7 +487,6 @@
         };
 
         map.UI.init(map);
-        map.enabled = true;
         map.load = function(latlng) {
             this.on('load', function(e) {
                 map.isLoaded = true;
@@ -494,11 +502,6 @@
                 console.log(e.message);
             });
             this.locateOwn(latlng);
-            return this;
-        };
-        map.unload = function() {
-//            this.remove();
-//            this.isLoaded = false;
             return this;
         };
         map.locateOwn = function(latlng) {
