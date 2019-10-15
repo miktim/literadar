@@ -326,7 +326,6 @@
                 marker.setLatLng(loc.latlng);
                 marker.accuracyCircle.setLatLng(loc.latlng);
                 marker.accuracyCircle.setRadius(loc.accuracy);
-                marker.setMarker(icon);
                 marker.setOpacity(1);
                 this.trackMarker(marker);
             }
