@@ -17,7 +17,8 @@
         options: {
             timeout: 240000, // ms
             maxAge: 600000, // ms
-            minDistance: 30  // meters (minimal track line segment)
+            minDistance: 30, // meters (minimal track line segment)
+            mulDistance: 0.5 // distance multiplier
         },
         locale: {
             itsmeId: "It's me."
@@ -239,7 +240,8 @@
             marker: undefined,
             pathLayer: undefined, // polyline
             accuracyLayer: L.featureGroup(), // track nodes accuracy
-            pathLength: 0
+            pathLength: 0,
+            lastLocation: undefined
         };
         map.track.init = function(map) {
             if (map.hasLayer(this.accuracyLayer)) {
@@ -271,21 +273,27 @@
             }
         };
 
-        map.minDisplacement = function(loc) {
+//        map.minDisplacement = function(loc) {
 // min fixed displacement proportional to speed
-            return Math.max(T.options.minDistance
-                    , T.options.minDistance * loc.speed / 1.67);
-        };
+//            return Math.max(T.options.minDistance
+//                    , T.options.minDistance * loc.speed / 1.67);
+//        };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
                 var pln = this.track.pathLayer.getLatLngs();
-                var dst = (pln.length > 0 ?
+
+                var dst = 0;
+                var step =T.options.minDistance;
+                if (pln.length > 0) {
 // flat distance() leaflet 1.0.1+                  
-                        this.distance(pos, pln[pln.length - 1]) : 0);
-                if (pln.length === 0
-                        || dst >= this.minDisplacement(marker.location)) {
-// ???check location 'jump' (dead zone)                    
+                    dst = this.distance(pos, pln[pln.length - 1]);
+                    step = Math.max(T.options.minDistance
+                            , step * dst / ((marker.location.timestamp - this.track.lastLocation.timestamp) / 1000) / 1.67);
+                }
+                if (pln.length === 0 || dst >= step) {
+// ???check location 'jump' (dead zone)
+                    this.track.lastLocation = marker.location;
                     this.track.pathLayer.addLatLng(pos);
                     L.circle(pos, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
@@ -337,6 +345,7 @@
             infoPane: undefined,
             consolePane: undefined,
             controlPane: undefined,
+            settingsPane: undefined,
             init: function(map) {
 
                 map.UI.infoPane = new (L.Control.extend({
@@ -414,6 +423,50 @@
                         }
                     }
                 }));
+                map.UI.settingsPane = new (L.Control.extend({
+                    options: {
+                        position: 'topright',
+                        infoData: {timeout: {nick: 'TMO', unit: 'sec'},
+                            maxAge: {nick: 'AGE', unit: 'sec'},
+                            minDistance: {nick: 'MDS', unit: 'm'},
+                            mulDistance: {nick: 'MUL', unit: ''}
+                        }
+                    },
+                    onAdd: function(map) {
+                        var pane = L.DomUtil.create('div', 'tracker-settings-pane')
+                                , tbl, row, el;
+
+                        el = L.DomUtil.create('div', 'tracker-settings-header', pane);
+                        el.innerHTML = 'Settings:';
+                        tbl = L.DomUtil.create('table', 'tracker-settings-table', pane);
+                        for (var key in this.options.infoData) {
+                            row = L.DomUtil.create('tr', 'tracker-settings-row', tbl);
+                            el = L.DomUtil.create('td', 'tracker-settings-nick', row);
+                            el.innerHTML = this.options.infoData[key].nick;
+                            el = L.DomUtil.create('td', 'tracker-settings-value', row);
+                            el = L.DomUtil.create('input', 'tracker-settings-value', el);
+                            el.type = 'text';
+                            el.value = T.options[key];
+                            this.options.infoData[key].element = el;
+                            el = L.DomUtil.create('td', 'tracker-settings-unit', row);
+                            el.innerHTML = this.options.infoData[key].unit;
+                        }
+                        el = L.DomUtil.create('div', 'tracker-settings-header', pane);
+                        el = L.DomUtil.create('button', 'tracker-button', el);
+                        el.type = 'button';
+                        el.innerHTML = 'Save';
+
+                        map.settingsPane = this;
+                        return pane;
+                    },
+                    onRemove: function(map) {
+                        delete map.settingsPane;
+                    },
+                    saveData: function(info) {
+                        for (var key in this.options.infoData) {
+                        }
+                    }
+                }));
                 map.UI.consolePane = new (L.Control.extend({
                     options: {position: 'bottomright', element: undefined},
                     onAdd: function(map) {
@@ -448,17 +501,20 @@
                         buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
                             btnAccuracy: {img: './images/btn_accuracy.png', onclick: function(e) {
-//                                    map.toggleAccuracy();
                                     e.target.parentElement.childNodes[1].hidden = !map.toggleAccuracy();
-//                                    e.target.getChildNodes[1].hidden = !map.toggleAccuracy();
                                 }, checked: true},
                             btnBound: {img: './images/btn_bound.png', onclick: function(e) {
                                     map.boundMarkers();
                                 }},
                             btnLocate: {img: './images/btn_locate.png', onclick: function(e) {
                                     map.locateOwn();
+                                }},
+                            btnSettings: {img: './images/btn_settings.png', onclick: function(e) {
+                                    if (!map.settingsPane)
+                                        map.UI.settingsPane.addTo(map);
+                                    else
+                                        map.UI.settingsPane.remove();
                                 }}
-// btnMap: {img: './images/btn_map.png', onclick: function(e) {}}
                         }
                     },
                     onAdd: function(map) {
@@ -490,9 +546,9 @@
         map.load = function(latlng) {
             this.on('load', function(e) {
                 map.isLoaded = true;
-                map.UI.consolePane.log();
             });
             this.on('locationfound', function(e) {
+                map.UI.consolePane.log();
                 map.setView(e.latlng, this.options.zoom);
                 T.checkDemoMode(e.latlng);
             });

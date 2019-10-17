@@ -2,7 +2,8 @@
  * LiteRadar tracker rev 191009
  * (c) 2019 miktim@mail.ru CC-BY-SA
  */
-.tracker-pane{
+.tracker-pane,
+.tracker-settings-pane {
     border: 2px solid darkgrey;
     border-radius: 5px;
     box-shadow: 0 0 2px grey;
@@ -12,20 +13,25 @@
     font-weight: bold;
     font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
-.tracker-info-table{
+.tracker-info-table,
+.tracker-settings-table{
     table-layout: fixed;
     border-collapse: collapse;
 }
-.tracker-info-header{
+.tracker-info-header,
+.tracker-settings-header{
     background-color: darkgray;
     padding: 0px 5px;
 }
-.tracker-info-nick{
+.tracker-info-nick,
+.tracker-settings-nick,
+.tracker-settings-unit{
     width: 50px; 
     border: 1px solid white;
     padding: 0px 5px;
 } 
-.tracker-info-value{
+.tracker-info-value,
+.tracker-settings-value{
     width: 80px; 
     border: 1px solid white;
     padding: 0px 5px;
@@ -37,12 +43,14 @@
     padding: 0px;
     margin: 0px;
 }
-div.tracker-button{
+div.tracker-button,
+button{
     margin-bottom:5px;
     background-color: black;
     border-radius: 5px;
     border: 1px solid black;
 }
+
 img.tracker-button{
     -webkit-filter: invert(1);
     filter: invert(1);
@@ -60,5 +68,12 @@ img.tracker-button-checker{
     width: 18px;
     height: 18px;
     cursor: pointer;
-    /*  z-index: -1;*/
+}
+.tracker-settings-pane {
+    position:absolute;
+    top: 0px;
+    right: 50px;
+}
+input[type=text].tracker-settings-value{
+    width:30px;
 }
