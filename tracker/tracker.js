@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191031
+ * LiteRadar tracker rev 191101
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -94,7 +94,7 @@
     T.onLocationError = function(e) {
         e.message = 'Geolocation: ' + e.message;
         console.log(e.message);
-        this.map.UI.consolePane.log(e.message);
+        this.map.consolePane.log(e.message);
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
@@ -207,6 +207,7 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+        T.UI.addTo(map);
         map.isLoaded = false;
         map.accuracyLayer = L.featureGroup(); // markers accuracy
         map.addLayer(map.accuracyLayer);
@@ -334,7 +335,6 @@
             marker.location = loc;
             return marker;
         };
-        T.UI.init(map);
         map.load = function(latlng) {
             this.on('load', function(e) {
                 map.isLoaded = true;
@@ -516,7 +516,7 @@
 
             }
         })),
-        init: function(map) {
+        addTo: function(map) {
             this.consolePane.addTo(map);
             this.controlPane.addTo(map);
         }
