@@ -11,11 +11,13 @@
         options: {
             mode: '', // [watch], nowatch, demo
             ws: '', // websocket address
-            timeout: 240000, // ms
-            maximumAge: 600000, // ms
-            enableHighAccuracy: true,
             minDistance: 30, // meters (minimal track line segment)
             mulDistance: 0.6 // distance multiplier
+        },
+        positionOptions: {
+            timeout: 180000, // ms
+            maximumAge: 300000, // ms
+            enableHighAccuracy: true
         },
         locale: {
             itsmeId: "It's me."
@@ -31,18 +33,18 @@
                 obj[key] = opts[key];
         return obj;
     };
-    T.getOptions = function(opt) {
+    T.parseOptions = function(opt) {
         this.update(T.options, opt); // mode,ws
         if ('watch' in opt) {
             var val = (opt.watch + '::').split(':');
             if (parseInt(val[0]))
-                this.options.timeout = parseInt(val[0]) * 1000;
+                this.positionOptions.timeout = parseInt(val[0]) * 1000;
             if (parseInt(val[1]))
-                this.options.maximumAge = parseInt(val[1]) * 1000;
+                this.positionOptions.maximumAge = parseInt(val[1]) * 1000;
             if (val[2] === 't')
-                this.options.enableHighAccuracy = true;
+                this.positionOptions.enableHighAccuracy = true;
             if (val[2] === 'f')
-                this.options.enableHighAccuracy = false;
+                this.positionOptions.enableHighAccuracy = false;
         }
         if ('track' in opt) {
             var val = (opt.track + ':').split(':');
@@ -73,7 +75,7 @@
 
     T.Location = function() {
         this.id = ''; // unique source id (string)
-        this.itsme = false;
+        this.itsme = false; // is own location
         this.latlng = undefined; // {lat, lng} WGS84
         this.accuracy = NaN; // meters (radius)
         this.speed = NaN; // meters per second
@@ -84,39 +86,39 @@
     };
     T.onLocationFound = function(l) {
         var loc = new T.Location();
+        T.update(loc, T.latLng(l.coords));
         loc.id = T.locale.itsmeId;
         loc.itsme = true;
-        T.update(loc, T.latLng(l.coords));
         loc.timestamp = l.timestamp;
-        loc.timeout = T.options.timeout;
+        loc.timeout = T.positionOptions.timeout;
         T.onLocation(loc);
     };
     T.onLocationError = function(e) {
         e.message = 'Geolocation: ' + e.message;
         console.log(e.message);
-        this.map.consolePane.log(e.message);
+        T.map.consolePane.log(e.message);
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.watchId;
     T.watchLocation = function(onLocationFound, onLocationError, options) {
         if (!('geolocation' in navigator)) {
-            onError({
+            onLocationError({
                 code: 0,
-                message: 'Geolocaton not supported.'
+                message: 'Geolocaton: not supported.'
             });
             return;
         }
-        if (this.watchId)
-            this.stopLocationWatch();
+        if (T.watchId)
+            T.stopLocationWatch();
 //        this.watchId = navigator.geolocation.watchPosition(
 //                onLocationFound, onLocationError, options);
         navigator.geolocation.getCurrentPosition(
-                T.onLocationFound, T.onLocationError, T.options);
-        this.watchId = setInterval(function() {
+                onLocationFound, onLocationError, options);
+        T.watchId = setInterval(function() {
             navigator.geolocation.getCurrentPosition(
-                    T.onLocationFound, T.onLocationError, T.options);
-        }, this.options.maximumAge);
+                    onLocationFound, onLocationError, options);
+        }, options.timeout);
 
 
     };
@@ -148,9 +150,8 @@
 //            var wsurl = 'wss://' + this.search.ws;
             try {
                 T.webSocket = new WebSocket(wsurl);
-                T.webSocket.onmessage = function(m) {
-                    T.onMessage(m);
-                };
+                T.webSocket.onmessage = T.onMessage;
+
                 T.webSocket.onopen = function(e) {
                     T.sendMessage = function(m) {
                         T.webSocket.send(m);
@@ -175,14 +176,9 @@
     T.checkWatchMode = function() {
         if (!this.testMode('nowatch'))
             this.watchLocation(
-                    function(e) {
-                        T.onLocationFound(e);
-                    },
-                    function(e) {
-                        T.onLocationError(e);
-                    },
-                    this.options
-                    );
+                    T.onLocationFound,
+                    T.onLocationError,
+                    T.positionOptions);
     };
     T.checkDemoMode = function(latlng) {
         if (this.testMode('demo'))
@@ -196,11 +192,11 @@
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerOpacity(T.locations[id], 0.4);
                 }
-            }, Math.max(60000, T.options.timeout));
+            }, Math.max(60000, T.positionOptions.timeout));
         }
     };
     T.run = function(opts, mapId, latlng) {
-        T.getOptions(opts);
+        T.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
         this.checkWebSocket();
         this.checkWatchMode();
