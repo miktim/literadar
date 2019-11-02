@@ -89,7 +89,7 @@
         T.update(loc, T.latLng(l.coords));
         loc.timestamp = l.timestamp;
         loc.timeout = T.options.timeout;
-        this.onLocation(loc);
+        T.onLocation(loc);
     };
     T.onLocationError = function(e) {
         e.message = 'Geolocation: ' + e.message;
@@ -103,19 +103,28 @@
         if (!('geolocation' in navigator)) {
             onError({
                 code: 0,
-                message: 'not supported.'
+                message: 'Geolocaton not supported.'
             });
             return;
         }
         if (this.watchId)
             this.stopLocationWatch();
-        this.watchId = navigator.geolocation.watchPosition(
-                onLocationFound, onLocationError, options);
+//        this.watchId = navigator.geolocation.watchPosition(
+//                onLocationFound, onLocationError, options);
+        navigator.geolocation.getCurrentPosition(
+                T.onLocationFound, T.onLocationError, T.options);
+        this.watchId = setInterval(function() {
+            navigator.geolocation.getCurrentPosition(
+                    T.onLocationFound, T.onLocationError, T.options);
+        }, this.options.maximumAge);
+
+
     };
     T.stopLocationWatch = function() {
-        if (this.watchId) {
-            navigator.geolocation.clearWatch(this.watchId);
-            this.watchId = undefined;
+        if (T.watchId) {
+            //           navigator.geolocation.clearWatch(this.watchId);
+            clearTimeout(T.watchId);
+            T.watchId = undefined;
         }
     };
     T.onLocation = function(loc) {
@@ -242,7 +251,8 @@
             pathLayer: undefined, // polyline
             accuracyLayer: L.featureGroup(), // track nodes accuracy
             pathLength: 0,
-            lastLocation: undefined
+            lastLocation: undefined,
+            rubberThread: undefined
         };
         map.track.init = function(map) {
             if (map.hasLayer(this.accuracyLayer)) {
@@ -293,6 +303,8 @@
                     L.circle(pos, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
                     this.track.pathLength += dst;
+                } else {
+//                    if(this.track.rubberThread) this.track.rubberThread.removeFrom()
                 }
                 this.setView(pos, this.getZoom());
                 this.infoPane.update({
