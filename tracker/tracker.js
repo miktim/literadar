@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191101
+ * LiteRadar tracker rev 191103
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -14,9 +14,9 @@
             minDistance: 30, // meters (minimal track line segment)
             mulDistance: 0.6 // distance multiplier
         },
-        positionOptions: {
+        watchOptions: {
             timeout: 180000, // ms
-            maximumAge: 300000, // ms
+            maximumAge: 30000, // ms
             enableHighAccuracy: true
         },
         locale: {
@@ -38,13 +38,13 @@
         if ('watch' in opt) {
             var val = (opt.watch + '::').split(':');
             if (parseInt(val[0]))
-                this.positionOptions.timeout = parseInt(val[0]) * 1000;
+                this.watchOptions.timeout = parseInt(val[0]) * 1000;
             if (parseInt(val[1]))
-                this.positionOptions.maximumAge = parseInt(val[1]) * 1000;
+                this.watchOptions.maximumAge = parseInt(val[1]) * 1000;
             if (val[2] === 't')
-                this.positionOptions.enableHighAccuracy = true;
+                this.watchOptions.enableHighAccuracy = true;
             if (val[2] === 'f')
-                this.positionOptions.enableHighAccuracy = false;
+                this.watchOptions.enableHighAccuracy = false;
         }
         if ('track' in opt) {
             var val = (opt.track + ':').split(':');
@@ -71,7 +71,6 @@
     };
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.active = T.makeIcon("./images/phone_b.png");
-//    T.icons.inactive = T.makeIcon("./images/phone_g.png");
 
     T.Location = function() {
         this.id = ''; // unique source id (string)
@@ -90,7 +89,7 @@
         loc.id = T.locale.itsmeId;
         loc.itsme = true;
         loc.timestamp = l.timestamp;
-        loc.timeout = T.positionOptions.timeout;
+        loc.timeout = T.watchOptions.timeout;
         T.onLocation(loc);
     };
     T.onLocationError = function(e) {
@@ -111,21 +110,21 @@
         }
         if (T.watchId)
             T.stopLocationWatch();
-//        this.watchId = navigator.geolocation.watchPosition(
-//                onLocationFound, onLocationError, options);
-        navigator.geolocation.getCurrentPosition(
+        this.watchId = navigator.geolocation.watchPosition(
                 onLocationFound, onLocationError, options);
-        T.watchId = setInterval(function() {
-            navigator.geolocation.getCurrentPosition(
-                    onLocationFound, onLocationError, options);
-        }, options.timeout);
-
-
+        /*
+         navigator.geolocation.getCurrentPosition(
+         onLocationFound, onLocationError, options);
+         T.watchId = setInterval(function() {
+         navigator.geolocation.getCurrentPosition(
+         onLocationFound, onLocationError, options);
+         }, options.maximumAge);
+         */
     };
     T.stopLocationWatch = function() {
         if (T.watchId) {
-            //           navigator.geolocation.clearWatch(this.watchId);
-            clearTimeout(T.watchId);
+            navigator.geolocation.clearWatch(this.watchId);
+//            clearTimeout(T.watchId);
             T.watchId = undefined;
         }
     };
@@ -178,12 +177,13 @@
             this.watchLocation(
                     T.onLocationFound,
                     T.onLocationError,
-                    T.positionOptions);
+                    T.watchOptions);
     };
     T.checkDemoMode = function(latlng) {
         if (this.testMode('demo'))
             this.demo.run(5000, latlng);
     };
+    
     T.expirationTimer;
     T.checkExpiredLocations = function() {
         if (!this.expirationTimer) {
@@ -192,11 +192,12 @@
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerOpacity(T.locations[id], 0.4);
                 }
-            }, Math.max(60000, T.positionOptions.timeout));
+            }, Math.max(60000, T.watchOptions.timeout));
         }
     };
+    
     T.run = function(opts, mapId, latlng) {
-        T.parseOptions(opts);
+        this.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
         this.checkWebSocket();
         this.checkWatchMode();
