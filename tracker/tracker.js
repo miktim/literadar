@@ -176,11 +176,13 @@
 //            }
             if ('getWakeLock' in navigator) {
                 try {
-                    T.wakeLock = navigator.getWakeLock('system');
+                    T.wakeLock = navigator.getWakeLock('screen');
                     T.wakeLockRequest = T.wakeLock.createRequest();
                 } catch (e) {
                     T.map.consolePane.log(e.message);
                 }
+            } else {
+                T.map.consolePane.log('WakeLock not allowed');
             }
         }
     };
@@ -291,8 +293,7 @@
                 if (this.track.lastLocation) {
 // flat distance() leaflet 1.0.1+                  
                     dst = this.distance(pos, this.track.lastLocation.latlng);
-                    step = Math.max(T.options.minDistance
-                            , step * dst / (marker.location.timestamp - this.track.lastLocation.timestamp) / 1000);
+                    step *= marker.location.speed;
                 }
                 if (!this.track.lastLocation || dst >= step) {
 // ???check location 'jump' (dead zone?)
