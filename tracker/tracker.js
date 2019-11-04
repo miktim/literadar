@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191103
+ * LiteRadar tracker rev 191104
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -11,8 +11,7 @@
         options: {
             mode: '', // [watch], nowatch, demo
             ws: '', // websocket address
-            minDistance: 30, // meters (minimal track line segment)
-            mulDistance: 0.6 // distance multiplier
+            minDistance: 30 // meters (minimal track segment length)
         },
         watchOptions: {
             timeout: 180000, // ms
@@ -46,12 +45,8 @@
             if (val[2] === 'f')
                 this.watchOptions.enableHighAccuracy = false;
         }
-        if ('track' in opt) {
-            var val = (opt.track + ':').split(':');
-            if (parseInt(val[0]))
-                this.options.minDistance = parseInt(val[0]);
-            if (parseFloat(val[1]))
-                this.options.mulDistance = parseFloat(val[1]);
+        if ('track' in opt && parseInt(opt.track)) {
+            this.options.minDistance = parseInt(opt.track);
         }
     };
     T.latLng = function(obj) {
@@ -173,17 +168,21 @@
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.options.mode));
     };
     T.checkWatchMode = function() {
-        if (!this.testMode('nowatch'))
+        if (!this.testMode('nowatch')) {
             this.watchLocation(
                     T.onLocationFound,
                     T.onLocationError,
                     T.watchOptions);
+            if ('WakeLock' in window) {
+                window.WakeLock.request('screen');
+            }
+        }
     };
     T.checkDemoMode = function(latlng) {
         if (this.testMode('demo'))
             this.demo.run(5000, latlng);
     };
-    
+
     T.expirationTimer;
     T.checkExpiredLocations = function() {
         if (!this.expirationTimer) {
@@ -195,7 +194,7 @@
             }, Math.max(60000, T.watchOptions.timeout));
         }
     };
-    
+
     T.run = function(opts, mapId, latlng) {
         this.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
@@ -291,7 +290,7 @@
 // flat distance() leaflet 1.0.1+                  
                     dst = this.distance(pos, this.track.lastLocation.latlng);
                     step = Math.max(T.options.minDistance
-                            , step * dst / ((marker.location.timestamp - this.track.lastLocation.timestamp) / 1000) * T.options.mulDistance);
+                            , step * dst / (marker.location.timestamp - this.track.lastLocation.timestamp) / 1000);
                 }
                 if (!this.track.lastLocation || dst >= step) {
 // ???check location 'jump' (dead zone?)
