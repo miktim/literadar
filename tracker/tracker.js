@@ -174,7 +174,7 @@
                     T.onLocationError,
                     T.watchOptions);
             if ('WakeLock' in window) {
-                window.WakeLock.request('screen');
+                window.WakeLock.request('system');
             }
         }
     };
