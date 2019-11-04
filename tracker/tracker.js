@@ -293,7 +293,8 @@
                 if (this.track.lastLocation) {
 // flat distance() leaflet 1.0.1+                  
                     dst = this.distance(pos, this.track.lastLocation.latlng);
-                    step *= marker.location.speed;
+                    step = Math.max(T.options.minDistance,
+                            T.options.minDistance * marker.location.speed);
                 }
                 if (!this.track.lastLocation || dst >= step) {
 // ???check location 'jump' (dead zone?)
