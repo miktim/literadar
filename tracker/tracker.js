@@ -66,7 +66,6 @@
     };
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.active = T.makeIcon("./images/phone_b.png");
-
     T.Location = function() {
         this.id = ''; // unique source id (string)
         this.itsme = false; // is own location
@@ -145,7 +144,6 @@
             try {
                 T.webSocket = new WebSocket(wsurl);
                 T.webSocket.onmessage = T.onMessage;
-
                 T.webSocket.onopen = function(e) {
                     T.sendMessage = function(m) {
                         T.webSocket.send(m);
@@ -173,8 +171,16 @@
                     T.onLocationFound,
                     T.onLocationError,
                     T.watchOptions);
-            if ('WakeLock' in window) {
-                window.WakeLock.request('system');
+//            if ('WakeLock' in window) {
+//                window.WakeLock.request('system');
+//            }
+            if ('getWakeLock' in navigator) {
+                try {
+                    T.wakeLock = navigator.getWakeLock('system');
+                    T.wakeLockRequest = T.wakeLock.createRequest();
+                } catch (e) {
+                    T.map.consolePane.log(e.message);
+                }
             }
         }
     };
@@ -182,7 +188,6 @@
         if (this.testMode('demo'))
             this.demo.run(5000, latlng);
     };
-
     T.expirationTimer;
     T.checkExpiredLocations = function() {
         if (!this.expirationTimer) {
@@ -194,7 +199,6 @@
             }, Math.max(60000, T.watchOptions.timeout));
         }
     };
-
     T.run = function(opts, mapId, latlng) {
         this.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
@@ -202,7 +206,6 @@
         this.checkWatchMode();
         this.checkExpiredLocations();
     };
-
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 5,
@@ -280,7 +283,6 @@
                 this.trackMarker(marker);
             }
         };
-
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
                 var pos = marker.getLatLng();
@@ -371,7 +373,6 @@
         };
         return map;
     };
-
     T.UI = {
         infoPane: new (L.Control.extend({
             options: {
@@ -529,7 +530,6 @@
             this.controlPane.addTo(map);
         }
     };
-
     T.demo = {
         isRunning: false,
         demos: [],
