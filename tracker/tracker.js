@@ -171,20 +171,10 @@
                     T.onLocationFound,
                     T.onLocationError,
                     T.watchOptions);
-//            if ('WakeLock' in window) {
-//                window.WakeLock.request('system');
-//            }
-            if ('wakeLock' in navigator) {
-//here system indicates CPU, GPU, radio, wifi etc.
-                navigator.wakeLock.request('system').then(
-                        function successFunction() {
-                            // success
-                        },
-                        function errorFunction(e) {
-                            // error
-                            T.map.consolePane.log(e.message);
-                        }
-                );
+            if ('getWakeLock' in navigator) {
+                navigator.getWakeLock("system").then(function(wakeLock) {
+                    T.wakeLockRequest = wakeLock.createRequest();
+                });
             } else {
                 T.map.consolePane.log('WakeLock not allowed');
             }
