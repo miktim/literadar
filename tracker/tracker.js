@@ -174,13 +174,17 @@
 //            if ('WakeLock' in window) {
 //                window.WakeLock.request('system');
 //            }
-            if ('getWakeLock' in navigator) {
-                try {
-                    T.wakeLock = navigator.getWakeLock('screen');
-                    T.wakeLockRequest = T.wakeLock.createRequest();
-                } catch (e) {
-                    T.map.consolePane.log(e.message);
-                }
+            if ('wakeLock' in navigator) {
+//here system indicates CPU, GPU, radio, wifi etc.
+                navigator.wakeLock.request('system').then(
+                        function successFunction() {
+                            // success
+                        },
+                        function errorFunction(e) {
+                            // error
+                            T.map.consolePane.log(e.message);
+                        }
+                );
             } else {
                 T.map.consolePane.log('WakeLock not allowed');
             }
