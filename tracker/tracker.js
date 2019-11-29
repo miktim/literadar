@@ -476,6 +476,13 @@
             options: {position: 'topright',
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
+                    btnFind: {
+                        img: './images/btn_find.png',
+                        onclick: function(map) {
+                            return (function(e) {
+                                map.boundMarkers();
+                            });
+                        }},
                     btnAccuracy: {
                         img: './images/btn_accuracy.png',
                         onclick: function(map) {
@@ -501,7 +508,7 @@
                 }
             },
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'buttons-pane')
+                var pane = L.DomUtil.create('div', 'tracker-buttons-pane')
                         , div, btn, chk;
                 for (var key in this.options.buttons) {
                     div = L.DomUtil.create('div', 'tracker-button', pane);
@@ -521,11 +528,36 @@
 
             }
         })),
+        findPane: new (L.Control.extend({
+            options: {position: 'topright',
+                element: undefined,
+            },
+            onAdd: function(map) {
+                var pane = L.DomUtil.create('div', 'tracker-find-pane')
+                        , div, btn, fld;
+                this.options.element = pane;
+                div = L.DomUtil.create('input', 'tracker-find-field', pane);
+                map.findPane = this;
+                return pane;
+            },
+            onRemove: function(map) {
+                delete map.findPane;
+            }
+        })),
         addTo: function(map) {
             this.consolePane.addTo(map);
             this.controlPane.addTo(map);
+            this.findPane.addTo(map);
         }
     };
+
+    window.addEventListener("unload", function() {
+        if (T.watchId)
+            T.stopLocationWatch();
+        if ('webSocket' in T)
+            T.webSocket.close();
+    });
+
     T.demo = {
         isRunning: false,
         demos: [],
