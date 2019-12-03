@@ -42,7 +42,7 @@
     border: 2px solid black;
 }*/
 .tracker-search-pane{
-    display: inline-block;
+/*    display: inline-block;*/
 /*    margin-bottom:5px;*/
     background-color: black;
 /*    border-radius: 2px;*/
@@ -50,7 +50,7 @@
 }
 
 img.tracker-search-pane{
-/*    display: inline-block;*/
+    display: inline-block;
 /*    background-color: black;*/
     width: 20px;
     height: 20px;
@@ -60,7 +60,7 @@ img.tracker-search-pane{
     cursor: pointer;
 }
 form.tracker-search-pane{
- /*   display: inline-block;*/
+    display: inline-block;
  /*   margin: 0px 0px;*/
  /*   padding: 0 2px;*/
     vertical-align: middle;
