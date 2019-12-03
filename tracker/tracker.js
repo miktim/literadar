@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191104
+ * LiteRadar tracker rev 191204
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -93,35 +93,65 @@
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
-    T.watchId;
-    T.watchLocation = function(onLocationFound, onLocationError, options) {
-        if (!('geolocation' in navigator)) {
-            onLocationError({
-                code: 0,
-                message: 'Geolocaton: not supported.'
-            });
-            return;
+    T.geoLocator = {
+        watchId: undefined,
+        start: function(onFound, onError, options) {
+            if (!('geolocation' in navigator)) {
+                onError({
+                    code: 0,
+                    message: 'Geolocaton: not supported.'
+                });
+                return;
+            }
+            if (this.watchId)
+                this.stop();
+            this.lastLocation = undefined;
+            this.isFree = true;
+            this.locations = [];
+            this.onLocationFound = onFound;
+            this.watchId = navigator.geolocation.watchPosition(
+                    function(l) {
+                        var gl = T.geoLocator;
+                        if (!gl.lastLocation) {
+                            gl.lastLocation = l;
+                            gl.onLocationFound(l);
+                        } else {
+                            gl.locations.push(l);
+                            if (gl.locations.length === 2 && gl.isFree) {
+                                gl.isFree = false;
+                                var distance = Number.MAX_VALUE, d,
+                                        nextLocation, bestLocation;
+                                var lastLatLng = L.latLng(
+                                        gl.lastLocation.coords.latitude,
+                                        gl.lastLocation.coords.longitude);
+                                while (gl.locations.length > 0) {
+                                    nextLocation = gl.locations.pop();
+                                    d = lastLatLng.distanceTo(L.latLng(
+                                            nextLocation.coords.latitude,
+                                            nextLocation.coords.longitude))
+                                            + nextLocation.coords.accuracy;
+                                    if (d < distance) {
+                                        distance = d;
+                                        bestLocation = nextLocation;
+                                    }
+                                }
+                                gl.lastLocation = bestLocation;
+                                gl.onLocationFound(bestLocation);
+                                gl.isFree = true;
+                            }
+                        }
+
+                    }, onError, options);
+
+        },
+        stop: function() {
+            if (this.watchId) {
+                navigator.geolocation.clearWatch(this.watchId);
+                this.watchId = undefined;
+            }
         }
-        if (T.watchId)
-            T.stopLocationWatch();
-        this.watchId = navigator.geolocation.watchPosition(
-                onLocationFound, onLocationError, options);
-        /*
-         navigator.geolocation.getCurrentPosition(
-         onLocationFound, onLocationError, options);
-         T.watchId = setInterval(function() {
-         navigator.geolocation.getCurrentPosition(
-         onLocationFound, onLocationError, options);
-         }, options.maximumAge);
-         */
     };
-    T.stopLocationWatch = function() {
-        if (T.watchId) {
-            navigator.geolocation.clearWatch(this.watchId);
-//            clearTimeout(T.watchId);
-            T.watchId = undefined;
-        }
-    };
+
     T.onLocation = function(loc) {
         if (!this.map.isLoaded && this.locations.length === 0)
             this.map.setView(loc.latlng, this.map.options.zoom);
@@ -130,12 +160,22 @@
         }
         this.map.setMarker(loc);
     };
+
+    T.actions = [];
+    T.actions['location'] = function(a) {
+        T.onLocation(a);
+    };
+    T.actions['message'] = function(a) {
+        T.map.consolePane.log(a.message);
+    };
     T.onMessage = function(m) {
-        var obj = JSON.parse(m);
-        if (obj.action === "location") {
-            this.onLocation(obj);
+        var actionObj = JSON.parse(m);
+        var action = T.actions[actionObj.action];
+        if (action) {
+            action(actionObj);
         }
     };
+
     T.checkWebSocket = function() {
         if (this.options.ws) {
             var wsurl = (window.location.protocol === 'https:' ?
@@ -167,12 +207,13 @@
     };
     T.checkWatchMode = function() {
         if (!this.testMode('nowatch')) {
-            this.watchLocation(
+//            this.watchLocation(
+            this.geoLocator.start(
                     T.onLocationFound,
                     T.onLocationError,
                     T.watchOptions);
             if ('getWakeLock' in navigator) {
-                navigator.getWakeLock("system").then(function(wakeLock) {
+                navigator.getWakeLock("screen").then(function(wakeLock) {
                     T.wakeLockRequest = wakeLock.createRequest();
                 });
             } else {
@@ -192,7 +233,7 @@
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerOpacity(T.locations[id], 0.4);
                 }
-            }, Math.max(60000, T.watchOptions.timeout));
+            }, 60000);
         }
     };
     T.run = function(opts, mapId, latlng) {
@@ -244,7 +285,7 @@
         map.track = {
             marker: undefined,
             pathLayer: undefined, // polyline
-            accuracyLayer: L.featureGroup(), // track nodes accuracy
+            accuracyLayer: L.featureGroup(), // track nodes accuracy circles
             pathLength: 0,
             lastLocation: undefined,
             rubberThread: undefined
@@ -298,20 +339,14 @@
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
                     this.track.pathLength += dst;
                 } else {
-//                    if(this.track.rubberThread) this.track.rubberThread.removeFrom()
+//                  this.track.rubberThread.
                 }
                 this.setView(pos, this.getZoom());
-                this.infoPane.update({
-                    id: marker.location.id,
+                this.infoPane.update(L.Util.extend(marker.location, {
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
                     movement: dst,
-                    timestamp: marker.location.timestamp,
-                    speed: marker.location.speed,
-                    altitude: marker.location.altitude,
-                    heading: marker.location.heading,
-                    accuracy: marker.location.accuracy
-                });
+                }));
             }
         };
         map.setMarkerOpacity = function(loc, opacity) {
@@ -362,7 +397,7 @@
             if (latlng)
                 this.setView(latlng, this.options.zoom);
             else {
-                this.consolePane.log('Expect location...', 240000);
+                this.consolePane.log('Expect location...', 120000);
                 this.locate({setView: false}); // no load event
             }
             return this;
@@ -476,13 +511,19 @@
             options: {position: 'topright',
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
-                    btnFind: {
-                        img: './images/btn_find.png',
+/*                    btnSearch: {
+                        img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
-                                map.boundMarkers();
+                                var sf = e.target.parentNode.getElementsByClassName('tracker-search-field')[0];
+                                if (!sf) {
+//                                    e.target.before(L.DomUtil.create('input', 'tracker-search-field'));
+                                } else {
+//                                    sf.remove();
+                                }
                             });
                         }},
+*/                        
                     btnAccuracy: {
                         img: './images/btn_accuracy.png',
                         onclick: function(map) {
@@ -528,32 +569,34 @@
 
             }
         })),
-        findPane: new (L.Control.extend({
+        searchPane: new (L.Control.extend({
             options: {position: 'topright',
-                element: undefined,
+                element: undefined
             },
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'tracker-find-pane')
-                        , div, btn, fld;
+                var pane = L.DomUtil.create('div', 'tracker-search-pane')
+                        , frm, btn, fld;
                 this.options.element = pane;
-                div = L.DomUtil.create('input', 'tracker-find-field', pane);
-                map.findPane = this;
+                frm = L.DomUtil.create('form','tracker-search-pane',pane);
+                fld = L.DomUtil.create('input', 'tracker-search-pane', frm);
+                btn = L.DomUtil.create('img', 'tracker-search-pane', pane);
+                btn.src = './images/btn_search.png';
+                map.searchPane = this;
                 return pane;
             },
             onRemove: function(map) {
-                delete map.findPane;
+                delete map.searchPane;
             }
         })),
         addTo: function(map) {
             this.consolePane.addTo(map);
+            this.searchPane.addTo(map);
             this.controlPane.addTo(map);
-            this.findPane.addTo(map);
         }
     };
 
     window.addEventListener("unload", function() {
-        if (T.watchId)
-            T.stopLocationWatch();
+        T.geoLocator.stop();
         if ('webSocket' in T)
             T.webSocket.close();
     });
@@ -620,6 +663,7 @@
             setInterval(function(d) {
                 d.sendAllDemos();
             }, delay, this); //!IE9
+            T.onMessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
         }
     };
 }(window, document));
