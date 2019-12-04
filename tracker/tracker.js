@@ -579,6 +579,8 @@
                 this.options.element = pane;
                 frm = L.DomUtil.create('form','tracker-search-pane',pane);
                 fld = L.DomUtil.create('input', 'tracker-search-pane', frm);
+                fld.type='text';
+                fld.name='search';
                 btn = L.DomUtil.create('img', 'tracker-search-pane', pane);
                 btn.src = './images/btn_search.png';
                 map.searchPane = this;
