@@ -15,7 +15,7 @@
         },
         watchOptions: {
             timeout: 180000, // ms
-            maximumAge: 30000, // ms
+            maximumAge: 190000, // ms
             enableHighAccuracy: true
         },
         locale: {
@@ -117,7 +117,7 @@
                             gl.onLocationFound(l);
                         } else {
                             gl.locations.push(l);
-                            if (gl.locations.length === 2 && gl.isFree) {
+                            if (gl.locations.length > 2 && gl.isFree) {
                                 gl.isFree = false;
                                 var distance = Number.MAX_VALUE, d,
                                         nextLocation, bestLocation;
@@ -515,17 +515,26 @@
                         img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
-                                var sf = e.target.parentNode.getElementsByClassName('tracker-search-pane')[0];
-                                if (!sf) {
-                                    var inp = L.DomUtil.create('input', 'tracker-search-pane');
-                                    e.target.before(inp);
+                                var frm = e.target.parentNode.getElementsByClassName('tracker-search-pane')[0];
+                                if (!frm) {
+                                    frm = L.DomUtil.create('form', 'tracker-search-pane');
+                                    var inp = L.DomUtil.create('input', 'tracker-search-pane', frm);
+                                    inp.type = 'text';
+                                    inp.name = 'searchCriteria';
+                                    frm.onsubmit = function() {
+                                        return false;
+                                    };
+                                    inp.onchange = function() {
+                                        map.consolePane.log(this.value);
+                                    };
+                                    e.target.before(frm);
+                                    frm.hidden = false;
                                     inp.focus();
                                 } else {
-                                    sf.remove();
+                                    frm.remove();
                                 }
                             });
                         }},
-                        
                     btnAccuracy: {
                         img: './images/btn_accuracy.png',
                         onclick: function(map) {
@@ -577,14 +586,20 @@
             },
             onAdd: function(map) {
 //                var pane = L.DomUtil.create('div', 'tracker-search-pane');
-                var frm, btn, fld;
+//                var frm, btn, inp;
 //                this.options.element = pane;
-                frm = L.DomUtil.create('form','tracker-search-pane');//,pane);
-                fld = L.DomUtil.create('input', 'tracker-search-pane', frm);
-                fld.type='text';
-                fld.name='search';
-                btn = L.DomUtil.create('img', 'tracker-search-pane', frm);
-                btn.src = './images/btn_search.png';
+                var frm = L.DomUtil.create('form', 'tracker-search-pane');
+                var inp = L.DomUtil.create('input', 'tracker-search-pane', frm);
+                inp.type = 'text';
+                inp.name = 'search';
+                inp.onchange = function() {
+
+                };
+                frm.onsubmit = function() {
+                    return false;
+                };
+//                btn = L.DomUtil.create('img', 'tracker-search-pane', frm);
+//                btn.src = './images/btn_search.png';
                 map.searchPane = this;
                 return frm;
             },
@@ -603,6 +618,7 @@
         T.geoLocator.stop();
         if ('webSocket' in T)
             T.webSocket.close();
+        clearTimeout(T.expirationTimer);
     });
 
     T.demo = {

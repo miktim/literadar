@@ -44,7 +44,7 @@
 form.tracker-search-pane{
     display: inline-block;
 /*   margin: 0px 0px;*/
- /*   padding: 0 2px;*/
+    padding-left: 3px;
 }
 input.tracker-search-pane{
     vertical-align: middle;
@@ -72,6 +72,7 @@ img.tracker-search-pane{
 }
 div.tracker-button{
     float: right;
+    margin-left: 5px;
     margin-bottom: 5px;
     background-color: black;
 /*    border-radius: 5px;*/
