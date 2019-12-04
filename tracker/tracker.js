@@ -574,17 +574,17 @@
                 element: undefined
             },
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'tracker-search-pane')
-                        , frm, btn, fld;
-                this.options.element = pane;
-                frm = L.DomUtil.create('form','tracker-search-pane',pane);
+//                var pane = L.DomUtil.create('div', 'tracker-search-pane');
+                var frm, btn, fld;
+//                this.options.element = pane;
+                frm = L.DomUtil.create('form','tracker-search-pane');//,pane);
                 fld = L.DomUtil.create('input', 'tracker-search-pane', frm);
                 fld.type='text';
                 fld.name='search';
-                btn = L.DomUtil.create('img', 'tracker-search-pane', pane);
+                btn = L.DomUtil.create('img', 'tracker-search-pane', frm);
                 btn.src = './images/btn_search.png';
                 map.searchPane = this;
-                return pane;
+                return frm;
             },
             onRemove: function(map) {
                 delete map.searchPane;

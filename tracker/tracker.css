@@ -33,64 +33,52 @@
 .tracker-console-message{
     padding: 0px 10px
 }
-/*
+
 .tracker-search-pane{
-    position:absolute;
-    top: 3px;
-    right: 50px;
-    border-radius: 5px;
-    border: 2px solid black;
-}*/
-.tracker-search-pane{
-    display: inline-block;
+/*    display: inline-block;*/
 /*    margin-bottom:5px;*/
     background-color: black;
 /*    border-radius: 2px;*/
     border: 1px solid black;
 }
-
+form.tracker-search-pane{
+    display: inline-block;
+/*   margin: 0px 0px;*/
+ /*   padding: 0 2px;*/
+}
+input.tracker-search-pane{
+    vertical-align: middle;
+    width: 150px; 
+    padding: 0 5px; 
+/*    margin: 0 1px;*/
+    background-color: white;
+    font-weight: bold;
+    font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
 img.tracker-search-pane{
 /*    display: inline-block;*/
 /*    background-color: black;*/
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
 /*    -webkit-filter: invert(1);
     filter: invert(1);*/
     vertical-align: middle;
     cursor: pointer;
 }
-form.tracker-search-pane{
- /*   display: inline-block;*/
- /*   margin: 0px 0px;*/
- /*   padding: 0 2px;*/
-    vertical-align: middle;
-}
-input.tracker-search-pane{
-    width: 150px; 
-    padding: 0 5px; 
-/*    margin: 0;*/
-    background-color: white;
-    font-weight: bold;
-    font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
-}
+
 .tracker-button{
     padding: 0px;
     margin: 0px;
 }
-
 div.tracker-button{
     margin-bottom: 5px;
     background-color: black;
 /*    border-radius: 5px;*/
     border: 1px solid black;
 }
-
 img.tracker-button{
-    position:relative;
-    z-index: 2;
-/*    -webkit-filter: invert(1);
-    filter: invert(1);*/
-/*    margin: 2px 2px;*/
+/*    position:relative;
+    z-index: 2;*/
     margin-left: 2px;
     margin-right: 2px;
     width: 36px;
@@ -100,8 +88,8 @@ img.tracker-button{
 }
 
 img.tracker-button-checker{
-    position:relative;
-    z-index: 3;
+/*    position:relative;
+    z-index: 3;*/
     margin-left: -18px;
     margin-bottom: -15px; 
     width: 18px; 
