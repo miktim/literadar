@@ -48,7 +48,7 @@ form.tracker-search-pane{
 }
 input.tracker-search-pane{
     vertical-align: middle;
-    width: 150px; 
+    width: 100px; 
     padding: 0 5px; 
 /*    margin: 0 1px;*/
     background-color: white;

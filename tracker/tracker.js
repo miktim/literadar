@@ -517,7 +517,9 @@
                             return (function(e) {
                                 var sf = e.target.parentNode.getElementsByClassName('tracker-search-pane')[0];
                                 if (!sf) {
-                                    e.target.before(L.DomUtil.create('input', 'tracker-search-pane'));
+                                    var inp = L.DomUtil.create('input', 'tracker-search-pane');
+                                    e.target.before(inp);
+                                    inp.focus();
                                 } else {
                                     sf.remove();
                                 }
