@@ -511,19 +511,19 @@
             options: {position: 'topright',
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
-/*                    btnSearch: {
+                    btnSearch: {
                         img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
-                                var sf = e.target.parentNode.getElementsByClassName('tracker-search-field')[0];
+                                var sf = e.target.parentNode.getElementsByClassName('tracker-search-pane')[0];
                                 if (!sf) {
-//                                    e.target.before(L.DomUtil.create('input', 'tracker-search-field'));
+                                    e.target.before(L.DomUtil.create('input', 'tracker-search-pane'));
                                 } else {
-//                                    sf.remove();
+                                    sf.remove();
                                 }
                             });
                         }},
-*/                        
+                        
                     btnAccuracy: {
                         img: './images/btn_accuracy.png',
                         onclick: function(map) {
@@ -592,7 +592,7 @@
         })),
         addTo: function(map) {
             this.consolePane.addTo(map);
-            this.searchPane.addTo(map);
+//            this.searchPane.addTo(map);
             this.controlPane.addTo(map);
         }
     };

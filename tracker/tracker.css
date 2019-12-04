@@ -58,8 +58,8 @@ input.tracker-search-pane{
 img.tracker-search-pane{
 /*    display: inline-block;*/
 /*    background-color: black;*/
-    width: 22px;
-    height: 22px;
+/*    width: 22px;
+    height: 22px;*/
 /*    -webkit-filter: invert(1);
     filter: invert(1);*/
     vertical-align: middle;
@@ -71,6 +71,7 @@ img.tracker-search-pane{
     margin: 0px;
 }
 div.tracker-button{
+    float: right;
     margin-bottom: 5px;
     background-color: black;
 /*    border-radius: 5px;*/
