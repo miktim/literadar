@@ -522,16 +522,19 @@
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
+                                        map.consolePane.log(this.searchCriteria.value);
                                         return false;
                                     };
                                     inp.onchange = function() {
                                         map.consolePane.log(this.value);
                                     };
-                                    e.target.before(frm);
-                                    frm.hidden = false;
+//                                    e.target.before(frm);
+                                    e.target.parentNode.insertBefore(frm,e.target);
+//                                    frm.hidden = false;
                                     inp.focus();
                                 } else {
-                                    frm.remove();
+//                                    frm.remove();
+                                    e.target.parentNode.removeChild(frm);
                                 }
                             });
                         }},
