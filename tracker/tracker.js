@@ -11,7 +11,7 @@
         options: {
             mode: '', // [watch], nowatch, demo
             ws: '', // websocket address
-            minDistance: 30 // meters (minimal track segment length)
+            minDistance: 20 // meters (minimal track segment length)
         },
         watchOptions: {
             timeout: 180000, // ms
@@ -116,6 +116,7 @@
                             gl.lastLocation = l;
                             gl.onLocationFound(l);
                         } else {
+                            if(gl.lastLocation.timestamp > l.timestamp) return;
                             gl.locations.push(l);
                             if (gl.locations.length > 2 && gl.isFree) {
                                 gl.isFree = false;
@@ -213,7 +214,7 @@
                     T.onLocationError,
                     T.watchOptions);
             if ('getWakeLock' in navigator) {
-                navigator.getWakeLock("screen").then(function(wakeLock) {
+                navigator.getWakeLock("system").then(function(wakeLock) {
                     T.wakeLockRequest = wakeLock.createRequest();
                 });
             } else {
@@ -298,6 +299,7 @@
                 map.removeLayer(this.pathLayer);
             }
             this.pathLayer = L.polyline([], {weight: 2, color: "red"}).addTo(map);
+            this.rubberThread = L.polyline([], {weight: 2, color: "red"}).addTo(map);
             this.accuracyLayer = L.featureGroup();
             if (map.showAccuracy)
                 map.addLayer(this.accuracyLayer);
@@ -309,6 +311,7 @@
             var marker = this.markers[id];
             if (this.track.marker === marker) {
                 this.track.marker = undefined;
+                this.track.rubberThread.setLatLngs([]);
                 if (this.infoPane)
                     this.infoPane.remove(); // removeFrom(this); //0.7.0
             } else {
@@ -322,7 +325,7 @@
         };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
-                var pos = marker.getLatLng();
+                var pos = marker.location.latlng;
                 var dst = 0;
                 var step = T.options.minDistance;
                 if (this.track.lastLocation) {
@@ -338,14 +341,16 @@
                     L.circle(pos, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
                     this.track.pathLength += dst;
+                    this.track.rubberThread.setLatLngs([]);
                 } else {
-//                  this.track.rubberThread.
+                    this.track.rubberThread.setLatLngs(
+                            [this.track.lastLocation.latlng, pos]);
                 }
                 this.setView(pos, this.getZoom());
                 this.infoPane.update(L.Util.extend(marker.location, {
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
-                    movement: dst,
+                    movement: dst
                 }));
             }
         };
@@ -371,9 +376,9 @@
                 marker.accuracyCircle.setLatLng(loc.latlng);
                 marker.accuracyCircle.setRadius(loc.accuracy);
                 marker.setOpacity(1);
-                this.trackMarker(marker);
             }
             marker.location = loc;
+            this.trackMarker(marker);
             return marker;
         };
         map.load = function(latlng) {
@@ -529,7 +534,7 @@
                                         map.consolePane.log(this.value);
                                     };
 //                                    e.target.before(frm);
-                                    e.target.parentNode.insertBefore(frm,e.target);
+                                    e.target.parentNode.insertBefore(frm, e.target);
 //                                    frm.hidden = false;
                                     inp.focus();
                                 } else {
