@@ -223,9 +223,25 @@
                     T.onLocationError,
                     T.options.watch);
             if ('getWakeLock' in navigator) {
-                navigator.getWakeLock("system").then(function(wakeLock) {
+                navigator.getWakeLock('system').then(function(wakeLock) {
+                    T.wakeLock = wakeLock;
                     T.wakeLockRequest = wakeLock.createRequest();
-                });
+                 T.map.consolePane.log('WakeLock system');
+               });
+                if (!T.wakeLock) {
+                    navigator.getWakeLock('screen').then(function(wakeLock) {
+                        T.wakeLock = wakeLock;
+                        T.wakeLockRequest = wakeLock.createRequest();
+                T.map.consolePane.log('WakeLock screen');
+                    });
+                }
+                if (T.wakeLock) {
+                    document.addEventListener('visibilitychange', function() {
+                        if (T.wakeLock !== null && document.visibilityState === 'visible') {
+                            T.wakeLockRequest = T.wakeLock.createRequest();
+                        }
+                    });
+                }
             } else {
                 T.map.consolePane.log('WakeLock not allowed');
             }
