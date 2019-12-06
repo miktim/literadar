@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 191204
+ * LiteRadar tracker rev 191206
  * (c) 2019 miktim@mail.ru CC-BY-SA
  * leaflet 1.0.1+ required
  */
@@ -11,12 +11,15 @@
         options: {
             mode: '', // [watch], nowatch, demo
             ws: '', // websocket address
-            minDistance: 20 // meters (minimal track segment length)
-        },
-        watchOptions: {
-            timeout: 180000, // ms
-            maximumAge: 190000, // ms
-            enableHighAccuracy: true
+            watch: {
+                timeout: 180000, // milliseconds
+                maximumAge: 190000, // milliseconds
+                enableHighAccuracy: true
+            },
+            track: {
+                minDistance: 20, // minimal track segment length (meters)
+                multiplier: 0.5
+            }
         },
         locale: {
             itsmeId: "It's me."
@@ -37,16 +40,20 @@
         if ('watch' in opt) {
             var val = (opt.watch + '::').split(':');
             if (parseInt(val[0]))
-                this.watchOptions.timeout = parseInt(val[0]) * 1000;
-            if (parseInt(val[1]))
-                this.watchOptions.maximumAge = parseInt(val[1]) * 1000;
+                this.options.watch.timeout = parseInt(val[0]) * 1000;
+            if (parseFloat(val[1])) // Infinity
+                this.options.watch.maximumAge = parseFloat(val[1]) * 1000;
             if (val[2] === 't')
-                this.watchOptions.enableHighAccuracy = true;
+                this.options.watch.enableHighAccuracy = true;
             if (val[2] === 'f')
-                this.watchOptions.enableHighAccuracy = false;
+                this.options.watch.enableHighAccuracy = false;
         }
         if ('track' in opt && parseInt(opt.track)) {
-            this.options.minDistance = parseInt(opt.track);
+            var val = (opt.track + ':').split(':');
+            if (parseInt(val[0]))
+                this.options.track.minDistance = parseInt(val[0]);
+            if (parseFloat(val[1]))
+                this.options.track.multiplier = parseFloat(val[1]);
         }
     };
     T.latLng = function(obj) {
@@ -83,7 +90,7 @@
         loc.id = T.locale.itsmeId;
         loc.itsme = true;
         loc.timestamp = l.timestamp;
-        loc.timeout = T.watchOptions.timeout;
+        loc.timeout = T.options.watch.timeout;
         T.onLocation(loc);
     };
     T.onLocationError = function(e) {
@@ -114,36 +121,35 @@
                         var gl = T.geoLocator;
                         if (!gl.lastLocation) {
                             gl.lastLocation = l;
+                            gl.locations.push(l);
                             gl.onLocationFound(l);
                         } else {
-                            if(gl.lastLocation.timestamp > l.timestamp) return;
+                            if (gl.lastLocation.timestamp > l.timestamp)
+                                return;
                             gl.locations.push(l);
                             if (gl.locations.length > 2 && gl.isFree) {
                                 gl.isFree = false;
-                                var distance = Number.MAX_VALUE, d,
-                                        nextLocation, bestLocation;
-                                var lastLatLng = L.latLng(
-                                        gl.lastLocation.coords.latitude,
-                                        gl.lastLocation.coords.longitude);
-                                while (gl.locations.length > 0) {
+                                // centroid
+                                var lat = 0, lng = 0, alt = 0, acc = 0, nextLocation;
+                                for (var i = 0; i < 3; i++) {
                                     nextLocation = gl.locations.pop();
-                                    d = lastLatLng.distanceTo(L.latLng(
-                                            nextLocation.coords.latitude,
-                                            nextLocation.coords.longitude))
-                                            + nextLocation.coords.accuracy;
-                                    if (d < distance) {
-                                        distance = d;
-                                        bestLocation = nextLocation;
-                                    }
+                                    lat += nextLocation.coords.latitude;
+                                    lng += nextLocation.coords.longitude;
+                                    acc = Math.max(acc, nextLocation.coords.accuracy);
+                                    alt += nextLocation.coords.altitude;
                                 }
-                                gl.lastLocation = bestLocation;
-                                gl.onLocationFound(bestLocation);
+                                nextLocation.coords.latitude = lat / 3;
+                                nextLocation.coords.longitude = lng / 3;
+                                nextLocation.coords.altitude = alt / 3;
+                                nextLocation.coords.accuracy = acc;
+//                                nextlocation.coords.heading =
+//                                nextLocation.timestamp = Date.now();
+                                gl.lastLocation = nextLocation;
                                 gl.isFree = true;
                             }
+                            gl.onLocationFound(gl.lastLocation);
                         }
-
                     }, onError, options);
-
         },
         stop: function() {
             if (this.watchId) {
@@ -212,7 +218,7 @@
             this.geoLocator.start(
                     T.onLocationFound,
                     T.onLocationError,
-                    T.watchOptions);
+                    T.options.watch);
             if ('getWakeLock' in navigator) {
                 navigator.getWakeLock("system").then(function(wakeLock) {
                     T.wakeLockRequest = wakeLock.createRequest();
@@ -325,28 +331,27 @@
         };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
-                var pos = marker.location.latlng;
                 var dst = 0;
-                var step = T.options.minDistance;
+                var step = T.options.track.minDistance;
                 if (this.track.lastLocation) {
 // flat distance() leaflet 1.0.1+                  
-                    dst = this.distance(pos, this.track.lastLocation.latlng);
-                    step = Math.max(T.options.minDistance,
-                            T.options.minDistance * marker.location.speed);
+                    dst = map.distance(marker.location.latlng,this.track.lastLocation.latlng);
+                    step = Math.max(step,
+                            step * T.options.track.multiplier * marker.location.speed);
                 }
                 if (!this.track.lastLocation || dst >= step) {
 // ???check location 'jump' (dead zone?)
                     this.track.lastLocation = marker.location;
-                    this.track.pathLayer.addLatLng(pos);
-                    L.circle(pos, marker.accuracyCircle.getRadius(),
+                    this.track.pathLayer.addLatLng(marker.location.latlng);
+                    L.circle(marker.location.latlng, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
                     this.track.pathLength += dst;
                     this.track.rubberThread.setLatLngs([]);
                 } else {
                     this.track.rubberThread.setLatLngs(
-                            [this.track.lastLocation.latlng, pos]);
+                            [this.track.lastLocation.latlng, marker.location.latlng]);
                 }
-                this.setView(pos, this.getZoom());
+                this.setView(marker.location.latlng, this.getZoom());
                 this.infoPane.update(L.Util.extend(marker.location, {
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
@@ -413,7 +418,7 @@
         infoPane: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
-                infoData: {id: {nick: 'Track ', unit: ':'},
+                infoData: {id: {nick: 'Track: ', unit: ''},
                     trackLength: {nick: 'DST', unit: 'm'},
                     trackTime: {nick: 'TTM', unit: ''},
                     timestamp: {nick: 'TME', unit: ''},
@@ -432,7 +437,7 @@
                     if (!pane.style.marginLeft) {
                         pane.style.marginLeft = '-120px';
                     } else {
-                        pane.style.marginLeft = "";
+                        pane.style.marginLeft = '';
                     }
                 };
                 el = L.DomUtil.create('div', 'tracker-info-header', pane);
