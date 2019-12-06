@@ -36,7 +36,8 @@
         return obj;
     };
     T.parseOptions = function(opt) {
-        this.update(T.options, opt); // mode,ws
+        T.options.mode = opt.mode; // mode,ws
+        T.options.ws = opt.ws;
         if ('watch' in opt) {
             var val = (opt.watch + '::').split(':');
             if (parseInt(val[0]))
@@ -143,7 +144,9 @@
                                 nextLocation.coords.altitude = alt / 3;
                                 nextLocation.coords.accuracy = acc;
 //                                nextlocation.coords.heading =
-//                                nextLocation.timestamp = Date.now();
+//                                nextlocation.coords.speed =
+//                                nextlocation.coords.altitudeAccuracy =
+                                nextLocation.timestamp = Date.now();
                                 gl.lastLocation = nextLocation;
                                 gl.isFree = true;
                             }
@@ -335,7 +338,7 @@
                 var step = T.options.track.minDistance;
                 if (this.track.lastLocation) {
 // flat distance() leaflet 1.0.1+                  
-                    dst = map.distance(marker.location.latlng,this.track.lastLocation.latlng);
+                    dst = map.distance(marker.location.latlng, this.track.lastLocation.latlng);
                     step = Math.max(step,
                             step * T.options.track.multiplier * marker.location.speed);
                 }
@@ -533,18 +536,15 @@
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
                                         map.consolePane.log(this.searchCriteria.value);
+                                        frm.parentNode.removeChild(frm);
                                         return false;
-                                    };
-                                    inp.onchange = function() {
-                                        map.consolePane.log(this.value);
                                     };
 //                                    e.target.before(frm);
                                     e.target.parentNode.insertBefore(frm, e.target);
-//                                    frm.hidden = false;
                                     inp.focus();
                                 } else {
-//                                    frm.remove();
-                                    e.target.parentNode.removeChild(frm);
+                                    frm.dispatchEvent(new Event('submit'));
+//                                    frm.parentNode.removeChild(frm);
                                 }
                             });
                         }},
