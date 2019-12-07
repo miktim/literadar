@@ -101,7 +101,7 @@
     };
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
-    T.geoLocator = {
+    T.locationWatcher = {
         watchId: undefined,
         start: function(onFound, onError, options) {
             if (!('geolocation' in navigator)) {
@@ -119,7 +119,7 @@
             this.onLocationFound = onFound;
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
-                        var gl = T.geoLocator;
+                        var gl = T.locationWatcher;
                         if (!gl.lastLocation) {
                             gl.lastLocation = l;
                             gl.locations.push(l);
@@ -212,39 +212,45 @@
             }
         }
     };
+    T.wakeLocker = {
+        wakeLock: null,
+        request: null,
+        create: function() {
+            if ('getWakeLock' in navigator) {
+                for (var wlType in ['system', 'screen']) {
+                    try {
+                        this.wakeLock = navigator.getWakeLock(wlType);
+                        this.wakeLockRequest = this.createRequest();
+                        document.addEventListener('visibilitychange', this.createRequest);
+                        document.addEventListener('fullscreenchange', this.createRequest);
+                        exit;
+                    } catch (e) {
+                        console.log(e.message);
+                    }
+                }
+            }
+        },
+        createRequest: function() {
+            var wl = T.wakeLocker;
+            if (wl.wakeLock && document.visibilityState === 'visible')
+                wl.request = wl.wakeLock.createRequest();
+        },
+        cancelRequest: function() {
+            if (T.wakeLocker.request)
+                T.wakeLocker.request.cancel();
+        }
+    };
+
     T.testMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.options.mode));
     };
     T.checkWatchMode = function() {
         if (!this.testMode('nowatch')) {
 //            this.watchLocation(
-            this.geoLocator.start(
+            this.locationWatcher.start(
                     T.onLocationFound,
                     T.onLocationError,
                     T.options.watch);
-            if ('getWakeLock' in navigator) {
-                navigator.getWakeLock('system').then(function(wakeLock) {
-                    T.wakeLock = wakeLock;
-                    T.wakeLockRequest = wakeLock.createRequest();
-                 T.map.consolePane.log('WakeLock system');
-               });
-                if (!T.wakeLock) {
-                    navigator.getWakeLock('screen').then(function(wakeLock) {
-                        T.wakeLock = wakeLock;
-                        T.wakeLockRequest = wakeLock.createRequest();
-                T.map.consolePane.log('WakeLock screen');
-                    });
-                }
-                if (T.wakeLock) {
-                    document.addEventListener('visibilitychange', function() {
-                        if (T.wakeLock !== null && document.visibilityState === 'visible') {
-                            T.wakeLockRequest = T.wakeLock.createRequest();
-                        }
-                    });
-                }
-            } else {
-                T.map.consolePane.log('WakeLock not allowed');
-            }
         }
     };
     T.checkDemoMode = function(latlng) {
@@ -331,9 +337,7 @@
             this.pathLength = 0;
             this.lastLocation = undefined;
         };
-        map.onMarkerClick = function(e) {
-            var id = e.target.options.alt;
-            var marker = this.markers[id];
+        map.startTrack = function(marker) {
             if (this.track.marker === marker) {
                 this.track.marker = undefined;
                 this.track.rubberThread.setLatLngs([]);
@@ -348,23 +352,29 @@
                 this.trackMarker(marker);
             }
         };
+        map.onMarkerClick = function(e) {
+            var id = e.target.options.alt;
+            var marker = this.markers[id];
+            this.startTrack(marker);
+        };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
-                var dst = 0;
+                var dist = 0;
                 var step = T.options.track.minDistance;
                 if (this.track.lastLocation) {
 // flat distance() leaflet 1.0.1+                  
-                    dst = map.distance(marker.location.latlng, this.track.lastLocation.latlng);
+                    dist = map.distance(marker.location.latlng, this.track.lastLocation.latlng);
                     step = Math.max(step,
-                            step * T.options.track.multiplier * marker.location.speed);
+                            step * T.options.track.multiplier
+                            * dist * 1000 / (marker.location.timestamp - this.track.lastLocation.timestamp));
                 }
-                if (!this.track.lastLocation || dst >= step) {
+                if (!this.track.lastLocation || dist >= step) {
 // ???check location 'jump' (dead zone?)
                     this.track.lastLocation = marker.location;
                     this.track.pathLayer.addLatLng(marker.location.latlng);
                     L.circle(marker.location.latlng, marker.accuracyCircle.getRadius(),
                             {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
-                    this.track.pathLength += dst;
+                    this.track.pathLength += dist;
                     this.track.rubberThread.setLatLngs([]);
                 } else {
                     this.track.rubberThread.setLatLngs(
@@ -374,7 +384,7 @@
                 this.infoPane.update(L.Util.extend(marker.location, {
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
-                    movement: dst
+                    movement: dist
                 }));
             }
         };
@@ -644,7 +654,7 @@
     };
 
     window.addEventListener("unload", function() {
-        T.geoLocator.stop();
+        T.locationWatcher.stop();
         if ('webSocket' in T)
             T.webSocket.close();
         clearTimeout(T.expirationTimer);
