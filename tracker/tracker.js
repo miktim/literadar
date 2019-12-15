@@ -35,9 +35,9 @@
                 obj[key] = opts[key];
         return obj;
     };
-    
+
     T.parseOptions = function(opt) {
-        T.options.mode = opt.mode; 
+        T.options.mode = opt.mode;
         T.options.ws = opt.ws;
         if ('watch' in opt) {
             var val = (opt.watch + '::').split(':');
@@ -117,7 +117,7 @@
         this.timestamp = null; // acquired time in milliseconds
         this.timeout = null; // lifetime in milliseconds?
     };
-    
+
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.locationWatcher = {
@@ -139,38 +139,45 @@
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
                         var gl = T.locationWatcher;
-                        if (!gl.lastLocation) {
+                        if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
                             gl.lastLocation = l;
-//                            gl.locations.push(l);
                             gl.onLocationFound(l);
-                        } else {
-                            if (gl.lastLocation.timestamp > l.timestamp)
-                                return;
-                            gl.locations.push(l);
-                            if (gl.locations.length > 2 && gl.isFree) {
-                                gl.isFree = false;
-                                // centroid
-                                var lat = 0, lng = 0, alt = 0, acc = 0, nextLocation;
-                                for (var i = 0; i < 3; i++) {
-                                    nextLocation = gl.locations.shift();
-                                    lat += nextLocation.coords.latitude;
-                                    lng += nextLocation.coords.longitude;
-                                    acc = Math.max(acc, nextLocation.coords.accuracy);
-                                    alt += nextLocation.coords.altitude;
-                                }
-                                nextLocation.coords.latitude = lat / 3;
-                                nextLocation.coords.longitude = lng / 3;
-                                nextLocation.coords.altitude = alt / 3;
-                                nextLocation.coords.accuracy = acc;
-//                                nextlocation.coords.heading =
-//                                nextlocation.coords.speed =
-//                                nextlocation.coords.altitudeAccuracy =
-                                nextLocation.timestamp = Date.now();
-                                gl.lastLocation = nextLocation;
-                                gl.isFree = true;
-                            }
-                            gl.onLocationFound(gl.lastLocation);
                         }
+                        /*
+                         if (!gl.lastLocation) {
+                         gl.lastLocation = l;
+                         //                            gl.locations.push(l);
+                         gl.onLocationFound(l);
+                         } else {
+                         if (gl.lastLocation.timestamp > l.timestamp)
+                         return;
+                         
+                         gl.locations.push(l);
+                         if (gl.locations.length > 2 && gl.isFree) {
+                         gl.isFree = false;
+                         // centroid
+                         var lat = 0, lng = 0, alt = 0, acc = 0, nextLocation;
+                         for (var i = 0; i < 3; i++) {
+                         nextLocation = gl.locations.shift();
+                         lat += nextLocation.coords.latitude;
+                         lng += nextLocation.coords.longitude;
+                         acc = Math.max(acc, nextLocation.coords.accuracy);
+                         alt += nextLocation.coords.altitude;
+                         }
+                         nextLocation.coords.latitude = lat / 3;
+                         nextLocation.coords.longitude = lng / 3;
+                         nextLocation.coords.altitude = alt / 3;
+                         nextLocation.coords.accuracy = acc;
+                         //                                nextlocation.coords.heading =
+                         //                                nextlocation.coords.speed =
+                         //                                nextlocation.coords.altitudeAccuracy =
+                         nextLocation.timestamp = Date.now();
+                         gl.lastLocation = nextLocation;
+                         gl.isFree = true;
+                         }
+                         gl.onLocationFound(gl.lastLocation);
+                         }
+                         */
                     }, onError, options);
         },
         stop: function() {
@@ -229,7 +236,8 @@
                     'wss://' : 'ws://') + this.options.ws;
 //            var wsurl = 'wss://' + this.search.ws;
             try {
-                if('webSocket' in T) T.webSocket.close();
+                if ('webSocket' in T)
+                    T.webSocket.close();
                 T.webSocket = new WebSocket(wsurl);
                 T.webSocket.onmessage = T.onJSONMessage;
                 T.webSocket.onopen = function(e) {
@@ -250,13 +258,12 @@
             }
         }
     };
-    
+
     T.checkMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.options.mode));
     };
     T.checkWatchMode = function() {
         if (!this.checkMode('nowatch')) {
-//            this.watchLocation(
             this.locationWatcher.start(
                     T.onLocationFound,
                     T.onLocationError,
@@ -267,6 +274,7 @@
         if (this.checkMode('demo'))
             this.demo.run(5000, latlng);
     };
+
     T.expirationTimer;
     T.checkExpiredLocations = function() {
         if (!this.expirationTimer) {
@@ -278,6 +286,7 @@
             }, 60000);
         }
     };
+
     T.run = function(opts, mapId, latlng) {
         this.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
@@ -287,7 +296,7 @@
     };
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
-            minZoom: 5,
+            minZoom: 10,
             zoom: 17,
             zoomControl: false
         });
@@ -314,16 +323,17 @@
         };
         map.markers = [];
         map.boundMarkers = function() {
-            var latLngs = [];
+            var bounds = null;
             for (var m in this.markers) {
-                latLngs.push(this.markers[m].getLatLng());
+                if (!bounds)
+                    bounds = this.markers[m].accuracyCircle.getBounds();
+                else
+                    bounds = bounds.extend(this.markers[m].accuracyCircle.getBounds());
             }
-            if (latLngs.length > 0) {
-                var bounds = L.latLngBounds(latLngs);
+            if (bounds)
                 this.fitBounds(bounds);
-                this.setView(bounds.getCenter());
-            }
         };
+
         map.track = {
             marker: undefined,
             pathLayer: undefined, // polyline
@@ -564,19 +574,19 @@
                         img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
-                                var frm = e.target.parentNode.getElementsByClassName('tracker-search-pane')[0];
+                                var frm = this.getElementsByClassName('tracker-search')[0];
                                 if (!frm) {
-                                    frm = L.DomUtil.create('form', 'tracker-search-pane');
-                                    var inp = L.DomUtil.create('input', 'tracker-search-pane', frm);
+                                    frm = L.DomUtil.create('form', 'tracker-search');
+                                    var inp = L.DomUtil.create('input', 'tracker-search', frm);
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
                                         map.consolePane.log(this.searchCriteria.value);
-                                        frm.parentNode.removeChild(frm);
+                                        this.parentElement.removeChild(frm);
                                         return false;
                                     };
 //                                    e.target.before(frm);
-                                    e.target.parentNode.insertBefore(frm, e.target);
+                                    this.insertBefore(frm, e.target);
                                     inp.focus();
                                 } else {
                                     frm.dispatchEvent(new Event('submit'));
@@ -588,7 +598,7 @@
                         img: './images/btn_accuracy.png',
                         onclick: function(map) {
                             return (function(e) {
-                                e.target.parentElement.childNodes[1].hidden = !map.toggleAccuracy();
+                                this.childNodes[1].hidden = !map.toggleAccuracy();
                             });
                         },
                         checked: true},
@@ -616,7 +626,7 @@
                     btn = L.DomUtil.create('img', 'tracker-button', div);
                     btn.src = this.options.buttons[key].img;
                     if (this.options.buttons[key].onclick)
-                        btn.onclick = this.options.buttons[key].onclick(map);
+                        div.onclick = this.options.buttons[key].onclick(map);
                     if ('checked' in this.options.buttons[key]) {
                         chk = L.DomUtil.create('img', 'tracker-button-checker', div);
                         chk.src = './images/btn_checker.png';
@@ -629,38 +639,51 @@
 
             }
         })),
-        searchPane: new (L.Control.extend({
-            options: {position: 'topright',
-                element: undefined
-            },
-            onAdd: function(map) {
-//                var pane = L.DomUtil.create('div', 'tracker-search-pane');
-//                var frm, btn, inp;
-//                this.options.element = pane;
-                var frm = L.DomUtil.create('form', 'tracker-search-pane');
-                var inp = L.DomUtil.create('input', 'tracker-search-pane', frm);
-                inp.type = 'text';
-                inp.name = 'search';
-                inp.onchange = function() {
-
-                };
-                frm.onsubmit = function() {
-                    return false;
-                };
-//                btn = L.DomUtil.create('img', 'tracker-search-pane', frm);
-//                btn.src = './images/btn_search.png';
-                map.searchPane = this;
-                return frm;
-            },
-            onRemove: function(map) {
-                delete map.searchPane;
+        searchById: function(pattern) { // locations or fences
+            pattern = '^' + pattern.replace('%', '.+').replace('*', '.*') + '^';
+            var list = [];
+            var rex = new RegExp(pattern, 'i');
+            for (var id in this.markers) {
+                if (rex.test(this.markers[id])) {
+                    list.push(this.markers[id]);
+                }
             }
-        })),
+            return list;
+        },
         addTo: function(map) {
-            this.consolePane.addTo(map);
-//            this.searchPane.addTo(map);
             this.controlPane.addTo(map);
+            (new (L.Control.extend({
+                options: {position: 'topright'
+                },
+                onAdd: function(map) {
+                    var pane = L.DomUtil.create('div', 'tracker-pane');
+                    pane.hidden = true;
+                    map.listPane = this;
+                    return pane;
+                },
+                onRemove: function(map) {
+                }
+            }))).addTo(map);
+            this.consolePane.addTo(map);
         }
+    };
+
+    var Table = function(table) {
+        /*
+         * { onClick:
+         *   title: {class:, data:, format:}
+         *   table: {class:, data:, format: }
+         *   header:{ class:,
+         *      cells: [{class:,data:,format:},]
+         *   row: {class:
+         *      cells: [{class:,data:,format:},...] } 
+         */
+        create = function(data) {
+
+        };
+        fill = function(data) {
+
+        };
     };
 
     window.addEventListener("unload", function() {
