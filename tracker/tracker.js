@@ -139,45 +139,47 @@
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
                         var gl = T.locationWatcher;
-                        if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
-                            gl.lastLocation = l;
-                            gl.onLocationFound(l);
-                        }
                         /*
-                         if (!gl.lastLocation) {
+                         if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
                          gl.lastLocation = l;
-                         //                            gl.locations.push(l);
                          gl.onLocationFound(l);
-                         } else {
-                         if (gl.lastLocation.timestamp > l.timestamp)
-                         return;
-                         
-                         gl.locations.push(l);
-                         if (gl.locations.length > 2 && gl.isFree) {
-                         gl.isFree = false;
-                         // centroid
-                         var lat = 0, lng = 0, alt = 0, acc = 0, nextLocation;
-                         for (var i = 0; i < 3; i++) {
-                         nextLocation = gl.locations.shift();
-                         lat += nextLocation.coords.latitude;
-                         lng += nextLocation.coords.longitude;
-                         acc = Math.max(acc, nextLocation.coords.accuracy);
-                         alt += nextLocation.coords.altitude;
-                         }
-                         nextLocation.coords.latitude = lat / 3;
-                         nextLocation.coords.longitude = lng / 3;
-                         nextLocation.coords.altitude = alt / 3;
-                         nextLocation.coords.accuracy = acc;
-                         //                                nextlocation.coords.heading =
-                         //                                nextlocation.coords.speed =
-                         //                                nextlocation.coords.altitudeAccuracy =
-                         nextLocation.timestamp = Date.now();
-                         gl.lastLocation = nextLocation;
-                         gl.isFree = true;
-                         }
-                         gl.onLocationFound(gl.lastLocation);
                          }
                          */
+                        if (!gl.lastLocation) {
+                            gl.lastLocation = l;
+                            gl.locations.push(l);
+                            gl.onLocationFound(l);
+                        } else {
+//                            if (gl.lastLocation.timestamp > l.timestamp) return;
+
+                            gl.locations.push(l);
+                            if (gl.locations.length > 2 && gl.isFree) {
+                                gl.isFree = false;
+// centroid
+                                var lat = 0, lng = 0, alt = 0, acc = 0, tme = 0
+                                        , nextLocation;
+                                for (var i = 0; i < 3; i++) {
+                                    nextLocation = gl.locations.shift();
+                                    lat += nextLocation.coords.latitude;
+                                    lng += nextLocation.coords.longitude;
+                                    acc = Math.max(acc, nextLocation.coords.accuracy);
+                                    alt += nextLocation.coords.altitude;
+                                    tme = Math.max(tme, nextLocation.timestamp);
+                                }
+                                nextLocation.coords.latitude = lat / 3;
+                                nextLocation.coords.longitude = lng / 3;
+                                nextLocation.coords.altitude = alt / 3;
+                                nextLocation.coords.accuracy = acc;
+                                nextLocation.timestamp = tme; //Date.now();
+                                //                                nextlocation.coords.heading =
+                                //                                nextlocation.coords.speed =
+                                //                                nextlocation.coords.altitudeAccuracy =
+                                gl.lastLocation = nextLocation;
+                                gl.isFree = true;
+                            }
+                            gl.onLocationFound(gl.lastLocation);
+                        }
+
                     }, onError, options);
         },
         stop: function() {
@@ -268,6 +270,7 @@
                     T.onLocationFound,
                     T.onLocationError,
                     T.options.watch);
+            this.wakeLocker.create(); //start track marker?
         }
     };
     T.checkDemoMode = function(latlng) {
@@ -677,6 +680,7 @@
          *      cells: [{class:,data:,format:},]
          *   row: {class:
          *      cells: [{class:,data:,format:},...] } 
+         *   rows:
          */
         create = function(data) {
 
