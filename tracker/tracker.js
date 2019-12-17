@@ -139,47 +139,48 @@
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
                         var gl = T.locationWatcher;
-                        /*
-                         if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
-                         gl.lastLocation = l;
-                         gl.onLocationFound(l);
-                         }
-                         */
-                        if (!gl.lastLocation) {
-                            gl.lastLocation = l;
-                            gl.locations.push(l);
-                            gl.onLocationFound(l);
-                        } else {
-//                            if (gl.lastLocation.timestamp > l.timestamp) return;
 
-                            gl.locations.push(l);
-                            if (gl.locations.length > 2 && gl.isFree) {
-                                gl.isFree = false;
-// centroid
-                                var lat = 0, lng = 0, alt = 0, acc = 0, tme = 0
-                                        , nextLocation;
-                                for (var i = 0; i < 3; i++) {
-                                    nextLocation = gl.locations.shift();
-                                    lat += nextLocation.coords.latitude;
-                                    lng += nextLocation.coords.longitude;
-                                    acc = Math.max(acc, nextLocation.coords.accuracy);
-                                    alt += nextLocation.coords.altitude;
-                                    tme = Math.max(tme, nextLocation.timestamp);
-                                }
-                                nextLocation.coords.latitude = lat / 3;
-                                nextLocation.coords.longitude = lng / 3;
-                                nextLocation.coords.altitude = alt / 3;
-                                nextLocation.coords.accuracy = acc;
-                                nextLocation.timestamp = tme; //Date.now();
-                                //                                nextlocation.coords.heading =
-                                //                                nextlocation.coords.speed =
-                                //                                nextlocation.coords.altitudeAccuracy =
-                                gl.lastLocation = nextLocation;
-                                gl.isFree = true;
-                            }
-                            gl.onLocationFound(gl.lastLocation);
+                        if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
+                            gl.lastLocation = l;
+                            gl.onLocationFound(l);
                         }
 
+                        /*                        
+                         if (!gl.lastLocation) {
+                         gl.lastLocation = l;
+                         gl.locations.push(l);
+                         gl.onLocationFound(l);
+                         } else {
+                         //                            if (gl.lastLocation.timestamp > l.timestamp) return;
+                         
+                         gl.locations.push(l);
+                         if (gl.locations.length > 2 && gl.isFree) {
+                         gl.isFree = false;
+                         // centroid
+                         var lat = 0, lng = 0, alt = 0, acc = 0, tme = 0
+                         , nextLocation;
+                         for (var i = 0; i < 3; i++) {
+                         nextLocation = gl.locations.shift();
+                         lat += nextLocation.coords.latitude;
+                         lng += nextLocation.coords.longitude;
+                         acc = Math.max(acc, nextLocation.coords.accuracy);
+                         alt += nextLocation.coords.altitude;
+                         tme = Math.max(tme, nextLocation.timestamp);
+                         }
+                         nextLocation.coords.latitude = lat / 3;
+                         nextLocation.coords.longitude = lng / 3;
+                         nextLocation.coords.altitude = alt / 3;
+                         nextLocation.coords.accuracy = acc;
+                         nextLocation.timestamp = tme; //Date.now();
+                         //                                nextlocation.coords.heading =
+                         //                                nextlocation.coords.speed =
+                         //                                nextlocation.coords.altitudeAccuracy =
+                         gl.lastLocation = nextLocation;
+                         gl.isFree = true;
+                         }
+                         gl.onLocationFound(gl.lastLocation);
+                         }
+                         */
                     }, onError, options);
         },
         stop: function() {
@@ -264,13 +265,21 @@
     T.checkMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.options.mode));
     };
+
     T.checkWatchMode = function() {
         if (!this.checkMode('nowatch')) {
             this.locationWatcher.start(
                     T.onLocationFound,
                     T.onLocationError,
                     T.options.watch);
-            this.wakeLocker.create(); //start track marker?
+            T.noSleep = new NoSleep();
+        } else {
+            T.noSleep = {
+                enable: function() {
+                },
+                disable: function() {
+                }
+            };
         }
     };
     T.checkDemoMode = function(latlng) {
@@ -362,11 +371,25 @@
         };
         map.startTrack = function(marker) {
             if (this.track.marker === marker) {
+                if (marker.location.itsme ) {
+// disable noSleep 
+                    T.noSleep.disable();
+                    this.consolePane.log('NoSleep OFF');
+                }
                 this.track.marker = undefined;
                 this.track.rubberThread.setLatLngs([]);
                 if (this.infoPane)
                     this.infoPane.remove(); // removeFrom(this); //0.7.0
+
             } else {
+                if (marker.location.itsme) {
+// enable noSleep 
+                    T.noSleep.enable();
+                    this.consolePane.log('NoSleep ON');
+                } else {
+// disable noSleep  
+                    T.noSleep.disable();
+                }
                 this.track.init(this);
                 this.track.started = marker.location.timestamp;
                 if (!this.infoPane)
