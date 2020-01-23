@@ -17,6 +17,7 @@
         <script src="./libs/leaflet1.5.1/leaflet.js"></script-->
         <link rel="stylesheet" href="./tracker.css">
         <script src="./tracker.min.js"></script>
+        <!-- https://github.com/richtr/NoSleep.js -->
         <script src="./nosleep.min.js"></script>
     </head>
     <body>
@@ -37,7 +38,7 @@
                     console.log(e.message);
                 }
             }
-            T.run(options, 'map');
+            T.start(options, 'map');
         </script>
     </body>
 </html>

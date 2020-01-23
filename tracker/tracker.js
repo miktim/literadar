@@ -1,6 +1,6 @@
 /* 
- * LiteRadar tracker rev 191206
- * (c) 2019 miktim@mail.ru CC-BY-SA
+ * LiteRadar tracker rev 200106
+ * CC-BY-SA (c) 2019 miktim@mail.ru
  * leaflet 1.0.1+ required
  */
 
@@ -10,10 +10,10 @@
         isSmallScreen: (screen.width > 500) ? false : true,
         options: {
             mode: '', // [watch], nowatch, demo
-            ws: '', // websocket address
+            ws: '', // websocket address:port
             watch: {
                 timeout: 180000, // milliseconds
-                maximumAge: 190000, // milliseconds
+                maximumAge: 120000, // milliseconds
                 enableHighAccuracy: true
             },
             track: {
@@ -76,43 +76,57 @@
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.active = T.makeIcon("./images/phone_b.png");
 
+// https://www.w3.org/TR/wake-lock/
 // https://web.dev/wakelock/
-    T.wakeLocker = {
-        wakeLock: null,
-        request: null,
-        create: function() {
-            if ('getWakeLock' in navigator) {
-                for (var wlType in ['system', 'screen']) {
-                    try {
-                        this.wakeLock = navigator.getWakeLock(wlType);
-                        this.wakeLockRequest = this.createRequest();
-                        document.addEventListener('visibilitychange', this.createRequest);
-                        document.addEventListener('fullscreenchange', this.createRequest);
-                        exit;
-                    } catch (e) {
-                        console.log(e.message);
-                    }
+    T.WakeLocker = function() {
+        this.wakeLock = null;
+        if ('getWakeLock' in navigator) {
+            var wlTypes = ['system', 'screen'];
+            for (var i = 0; i < 2; i++) {
+                try {
+                    this.wakeLock = navigator.getWakeLock(wlTypes[i]);
+                    exit;
+                } catch (e) {
+                    console.log(e.message);
                 }
             }
-        },
-        createRequest: function() {
-            var wl = T.wakeLocker;
-            if (wl.wakeLock && document.visibilityState === 'visible')
-                wl.request = wl.wakeLock.createRequest();
-        },
-        cancelRequest: function() {
-            if (T.wakeLocker.request)
-                T.wakeLocker.request.cancel();
+        } else {
+            console.log('WakeLock API not supported');
+// https://github.com/richtr/NoSleep.js            
+            return new NoSleep();
         }
+        this.request = null;
+        this.createRequest = function() {
+            if (this.wakeLock && document.visibilityState === 'visible')
+                this.request = this.wakeLock.createRequest();
+        };
+// https://stackoverflow.com/questions/1338599/the-value-of-this-within-the-handler-using-addeventlistener
+        this.handleEvent = function(e) {
+            if (e.type === 'visibilitychange' || e.type === 'fullscreenchange')
+                this.createRequest();
+        };
+        this.enable = function() {
+            document.addEventListener('visibilitychange', this);
+            document.addEventListener('fullscreenchange', this);
+            this.createRequest();
+        };
+        this.disable = function() {
+            if (this.wakeLocker.request) {
+                document.removeEventListener('visibilitychange', this);
+                document.removeEventListener('fullscreenchange', this);
+                this.request.cancel();
+            }
+        };
     };
 
     T.Location = function() {
         this.id = ''; // unique source id (string)
         this.itsme = false; // is own location
-        this.latlng = undefined; // {lat, lng} WGS84
+        this.latlng = undefined; // {lat, lng, alt?} WGS84
         this.accuracy = null; // meters (radius)
         this.speed = null; // meters per second
         this.altitude = null; // meters
+        this.altitudeAccuracy = null; // meters
         this.heading = null; // degrees counting clockwise from true North
         this.timestamp = null; // acquired time in milliseconds
         this.timeout = null; // lifetime in milliseconds?
@@ -120,9 +134,9 @@
 
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
-    T.locationWatcher = {
-        watchId: undefined,
-        start: function(onFound, onError, options) {
+    T.locationWatcher = new function() {
+        this.watchId = undefined;
+        this.start = function(onFound, onError, options) {
             if (!('geolocation' in navigator)) {
                 onError({
                     code: 0,
@@ -136,31 +150,32 @@
             this.isFree = true;
             this.locations = [];
             this.onLocationFound = onFound;
+            var lw = this;
+
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
-                        var gl = T.locationWatcher;
 
-                        if (!gl.lastLocation || gl.lastLocation.timestamp < l.timestamp) {
-                            gl.lastLocation = l;
-                            gl.onLocationFound(l);
+                        if (!lw.lastLocation || lw.lastLocation.timestamp < l.timestamp) {
+                            lw.lastLocation = l;
+                            lw.onLocationFound(l);
                         }
 
                         /*                        
-                         if (!gl.lastLocation) {
-                         gl.lastLocation = l;
-                         gl.locations.push(l);
-                         gl.onLocationFound(l);
+                         if (!lw.lastLocation) {
+                         lw.lastLocation = l;
+                         lw.locations.push(l);
+                         lw.onLocationFound(l);
                          } else {
-                         //                            if (gl.lastLocation.timestamp > l.timestamp) return;
+                         //                            if (lw.lastLocation.timestamp > l.timestamp) return;
                          
-                         gl.locations.push(l);
-                         if (gl.locations.length > 2 && gl.isFree) {
-                         gl.isFree = false;
+                         lw.locations.push(l);
+                         if (lw.locations.length > 2 && lw.isFree) {
+                         lw.isFree = false;
                          // centroid
                          var lat = 0, lng = 0, alt = 0, acc = 0, tme = 0
                          , nextLocation;
                          for (var i = 0; i < 3; i++) {
-                         nextLocation = gl.locations.shift();
+                         nextLocation = lw.locations.shift();
                          lat += nextLocation.coords.latitude;
                          lng += nextLocation.coords.longitude;
                          acc = Math.max(acc, nextLocation.coords.accuracy);
@@ -175,20 +190,20 @@
                          //                                nextlocation.coords.heading =
                          //                                nextlocation.coords.speed =
                          //                                nextlocation.coords.altitudeAccuracy =
-                         gl.lastLocation = nextLocation;
-                         gl.isFree = true;
+                         lw.lastLocation = nextLocation;
+                         lw.isFree = true;
                          }
-                         gl.onLocationFound(gl.lastLocation);
+                         lw.onLocationFound(lw.lastLocation);
                          }
                          */
                     }, onError, options);
-        },
-        stop: function() {
+        };
+        this.stop = function() {
             if (this.watchId) {
                 navigator.geolocation.clearWatch(this.watchId);
                 this.watchId = undefined;
             }
-        }
+        };
     };
 
     T.onLocationFound = function(l) {
@@ -228,7 +243,7 @@
             action(actionObj);
         }
     };
-    T.onJSONMessage = function(m) {
+    T.onJSONmessage = function(m) {
         var actionObj = JSON.parse(m);
         T.onAction(actionObj);
     };
@@ -242,7 +257,7 @@
                 if ('webSocket' in T)
                     T.webSocket.close();
                 T.webSocket = new WebSocket(wsurl);
-                T.webSocket.onmessage = T.onJSONMessage;
+                T.webSocket.onmessage = T.onJSONmessage;
                 T.webSocket.onopen = function(e) {
                     T.sendMessage = function(m) {
                         T.webSocket.send(m);
@@ -272,7 +287,7 @@
                     T.onLocationFound,
                     T.onLocationError,
                     T.options.watch);
-            T.noSleep = new NoSleep();
+            T.noSleep = new T.WakeLocker();
         } else {
             T.noSleep = {
                 enable: function() {
@@ -284,7 +299,7 @@
     };
     T.checkDemoMode = function(latlng) {
         if (this.checkMode('demo'))
-            this.demo.run(5000, latlng);
+            this.demo.start(5000, latlng);
     };
 
     T.expirationTimer;
@@ -299,13 +314,24 @@
         }
     };
 
-    T.run = function(opts, mapId, latlng) {
+    T.start = function(opts, mapId, latlng) {
         this.parseOptions(opts);
         this.map = this._map(mapId).load(latlng);
         this.checkWebSocket();
         this.checkWatchMode();
         this.checkExpiredLocations();
+        window.addEventListener('unload', T.stop);
     };
+
+    T.stop = function() {
+        T.locationWatcher.stop();
+        if ('webSocket' in T)
+            T.webSocket.close();
+        clearTimeout(T.expirationTimer);
+        T.noSleep.disable();
+        T.demo.stop();
+    };
+
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 10,
@@ -317,6 +343,8 @@
         }).addTo(map);
         T.UI.addTo(map);
         map.isLoaded = false;
+        map.markerLayer = L.featureGroup(); // markers
+        map.addLayer(map.markerLayer);
         map.accuracyLayer = L.featureGroup(); // markers accuracy
         map.addLayer(map.accuracyLayer);
         map.showAccuracy = true;
@@ -335,24 +363,19 @@
         };
         map.markers = [];
         map.boundMarkers = function() {
-            var bounds = null;
-            for (var m in this.markers) {
-                if (!bounds)
-                    bounds = this.markers[m].accuracyCircle.getBounds();
-                else
-                    bounds = bounds.extend(this.markers[m].accuracyCircle.getBounds());
-            }
-            if (bounds)
-                this.fitBounds(bounds);
+            var bounds = this.markerLayer.getBounds();
+            if (this.hasLayer(this.accuracyLayer))
+                bounds = bounds.extend(this.accuracyLayer.getBounds());
+            this.fitBounds(bounds);
         };
 
         map.track = {
             marker: undefined,
             pathLayer: undefined, // polyline
+            rubberThread: undefined, //
             accuracyLayer: L.featureGroup(), // track nodes accuracy circles
             pathLength: 0,
-            lastLocation: undefined,
-            rubberThread: undefined
+            lastLocation: undefined
         };
         map.track.init = function(map) {
             if (map.hasLayer(this.accuracyLayer)) {
@@ -360,6 +383,9 @@
             }
             if (map.hasLayer(this.pathLayer)) {
                 map.removeLayer(this.pathLayer);
+            }
+            if (map.hasLayer(this.rubberThread)) {
+                map.removeLayer(this.rubberThread);
             }
             this.pathLayer = L.polyline([], {weight: 2, color: "red"}).addTo(map);
             this.rubberThread = L.polyline([], {weight: 2, color: "red"}).addTo(map);
@@ -371,7 +397,7 @@
         };
         map.startTrack = function(marker) {
             if (this.track.marker === marker) {
-                if (marker.location.itsme ) {
+                if (marker.location.itsme) {
 // disable noSleep 
                     T.noSleep.disable();
                     this.consolePane.log('NoSleep OFF');
@@ -447,7 +473,7 @@
                 marker.on('click', function(e) {
                     map.onMarkerClick(e);
                 });
-                marker.addTo(this);
+                marker.addTo(this.markerLayer);
                 marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
                         {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
                 this.markers[loc.id] = marker;
@@ -694,32 +720,6 @@
         }
     };
 
-    var Table = function(table) {
-        /*
-         * { onClick:
-         *   title: {class:, data:, format:}
-         *   table: {class:, data:, format: }
-         *   header:{ class:,
-         *      cells: [{class:,data:,format:},]
-         *   row: {class:
-         *      cells: [{class:,data:,format:},...] } 
-         *   rows:
-         */
-        create = function(data) {
-
-        };
-        fill = function(data) {
-
-        };
-    };
-
-    window.addEventListener("unload", function() {
-        T.locationWatcher.stop();
-        if ('webSocket' in T)
-            T.webSocket.close();
-        clearTimeout(T.expirationTimer);
-    });
-
     T.demo = {
         isRunning: false,
         demos: [],
@@ -747,7 +747,7 @@
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
                     Math.cos(d / R) - Math.sin(φ1) * Math.sin(φ2));
             return {lat: φ2 / RpD, lng: ((λ2 / RpD) + 540) % 360 - 180};
-//???? latitude
+//???? heading - latitude
         },
         moveRandom: function(p) {
             p.heading = this.randDbl(0, 180);
@@ -764,9 +764,9 @@
             }
         },
         sendDemo: function(d) {
-            T.onJSONMessage(JSON.stringify(d));
+            T.onJSONmessage(JSON.stringify(d));
         },
-        run: function(delay, latlng) { // milliseconds, initial position
+        start: function(delay, latlng) { // milliseconds, initial position
             if (this.isRunning)
                 return;
             this.isRunning = true;
@@ -779,10 +779,14 @@
                 this.demos[i] = this.moveRandom(p);
             }
             this.sendAllDemos();
-            setInterval(function(d) {
+            this.timer = setInterval(function(d) {
                 d.sendAllDemos();
             }, delay, this); //!IE9
-            T.onJSONMessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
+            T.onJSONmessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
+        },
+        stop: function() {
+            if (this.timer)
+                clearTimeout(this.timer);
         }
     };
 }(window, document));
