@@ -1,5 +1,5 @@
 /* 
- * LiteRadar tracker rev 200106
+ * LiteRadar tracker rev 200124
  * CC-BY-SA (c) 2019 miktim@mail.ru
  * leaflet 1.0.1+ required
  */
@@ -85,7 +85,7 @@
             for (var i = 0; i < 2; i++) {
                 try {
                     this.wakeLock = navigator.getWakeLock(wlTypes[i]);
-                    exit;
+                    break;
                 } catch (e) {
                     console.log(e.message);
                 }
@@ -363,9 +363,10 @@
         };
         map.markers = [];
         map.boundMarkers = function() {
-            var bounds = this.markerLayer.getBounds();
             if (this.hasLayer(this.accuracyLayer))
-                bounds = bounds.extend(this.accuracyLayer.getBounds());
+                var bounds = bounds.extend(this.accuracyLayer.getBounds());
+            else
+                var bounds = this.markerLayer.getBounds();
             this.fitBounds(bounds);
         };
 
@@ -486,6 +487,17 @@
             marker.location = loc;
             this.trackMarker(marker);
             return marker;
+        };
+        map.searchMarkersById = function(pattern) { // locations or fences
+            pattern = '^' + pattern.replace('%', '.+').replace('*', '.*') + '^';
+            var list = [];
+            var rex = new RegExp(pattern, 'i');
+            for (var id in map.markers) {
+                if (rex.test(id)) {
+                    list.push(map.markers[id]);
+                }
+            }
+            return list;
         };
         map.load = function(latlng) {
             this.on('load', function(e) {
@@ -691,17 +703,6 @@
 
             }
         })),
-        searchById: function(pattern) { // locations or fences
-            pattern = '^' + pattern.replace('%', '.+').replace('*', '.*') + '^';
-            var list = [];
-            var rex = new RegExp(pattern, 'i');
-            for (var id in this.markers) {
-                if (rex.test(this.markers[id])) {
-                    list.push(this.markers[id]);
-                }
-            }
-            return list;
-        },
         addTo: function(map) {
             this.controlPane.addTo(map);
             (new (L.Control.extend({
