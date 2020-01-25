@@ -653,6 +653,8 @@
 //                                    var inp = this.getElementsByClassName('tracker-search')[1];
 //                                    inp.focus();
 //                                    inp.scrollIntoView();
+inp.disabled=false;
+inp.readOnly=false;
 setTimeout(function(el){
     el.focus();
 }, 500, inp);                                    
