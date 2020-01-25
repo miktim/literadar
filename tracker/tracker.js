@@ -1,6 +1,5 @@
 /* 
- * LiteRadar tracker rev 200124
- * CC-BY-SA (c) 2019 miktim@mail.ru
+ * LiteRadar tracker CC-BY-SA (c) 2019-2020 miktim@mail.ru
  * leaflet 1.0.1+ required
  */
 
@@ -651,7 +650,9 @@
                                     };
 //                                    e.target.before(frm);
                                     this.insertBefore(frm, e.target);
+                                    var inp = this.getElementsByClassName('tracker-search')[1];
                                     inp.focus();
+                                    inp.scrollIntoView();
                                 } else {
                                     frm.dispatchEvent(new Event('submit'));
 //                                    frm.parentNode.removeChild(frm);
