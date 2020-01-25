@@ -650,12 +650,14 @@
                                     };
 //                                    e.target.before(frm);
                                     this.insertBefore(frm, e.target);
-                                    var inp = this.getElementsByClassName('tracker-search')[1];
-                                    inp.focus();
-                                    inp.scrollIntoView();
+//                                    var inp = this.getElementsByClassName('tracker-search')[1];
+//                                    inp.focus();
+//                                    inp.scrollIntoView();
+setTimeout(function(el){
+    el.focus();
+}, 500, inp);                                    
                                 } else {
                                     frm.dispatchEvent(new Event('submit'));
-//                                    frm.parentNode.removeChild(frm);
                                 }
                             });
                         }},
