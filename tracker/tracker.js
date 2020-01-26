@@ -139,7 +139,7 @@
             if (!('geolocation' in navigator)) {
                 onError({
                     code: 0,
-                    message: 'Geolocaton: not supported.'
+                    message: 'Geolocaton API not supported.'
                 });
                 return;
             }
@@ -258,7 +258,7 @@
                 T.webSocket = new WebSocket(wsurl);
                 T.webSocket.onmessage = T.onJSONmessage;
                 T.webSocket.onopen = function(e) {
-                    T.sendMessage = function(m) {
+                    T.sendJSONmessage = function(m) {
                         T.webSocket.send(m);
                     };
                     console.log('WebSocket open');
@@ -333,7 +333,7 @@
 
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
-            minZoom: 10,
+            minZoom: 8,
             zoom: 17,
             zoomControl: false
         });
@@ -363,7 +363,7 @@
         map.markers = [];
         map.boundMarkers = function() {
             if (this.hasLayer(this.accuracyLayer))
-                var bounds = bounds.extend(this.accuracyLayer.getBounds());
+                var bounds = this.accuracyLayer.getBounds();
             else
                 var bounds = this.markerLayer.getBounds();
             this.fitBounds(bounds);
@@ -488,12 +488,12 @@
             return marker;
         };
         map.searchMarkersById = function(pattern) { // locations or fences
-            pattern = '^' + pattern.replace('%', '.+').replace('*', '.*') + '^';
-            var list = [];
+            pattern = '^' + pattern.replace('%', '.{1}').replace('*', '.*') + '$';
+            var list = {};
             var rex = new RegExp(pattern, 'i');
-            for (var id in map.markers) {
-                if (rex.test(id)) {
-                    list.push(map.markers[id]);
+            for (var key in map.markers) {
+                if (rex.test(key)) {
+                    list[key] = map.markers[key];
                 }
             }
             return list;
@@ -534,7 +534,7 @@
                     trackLength: {nick: 'DST', unit: 'm'},
                     trackTime: {nick: 'TTM', unit: ''},
                     timestamp: {nick: 'TME', unit: ''},
-                    speed: {nick: 'SPD', unit: 'm/sec'},
+                    speed: {nick: 'SPD', unit: 'm/s'},
                     altitude: {nick: 'ALT', unit: 'm'},
                     movement: {nick: 'MVT', unit: 'm'},
                     heading: {nick: 'HDN', unit: '&deg'},
@@ -629,6 +629,36 @@
                 }
             }
         })),
+        listPane: new (L.Control.extend({
+            options: {
+                position: 'topright'
+            },
+            onAdd: function(map) {
+                var pane = L.DomUtil.create('div', 'tracker-pane')
+                        , tbl, row, el, list = map.searchList;
+                pane.onclick = function(e) {
+                    if (e.target.classList.contains('tracker-list-img')) {
+                        
+                        map.listPane.remove();
+                    }
+                };
+                tbl = L.DomUtil.create('table', 'tracker-list', pane);
+                for (var key in list) {
+                    row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
+                    el = L.DomUtil.create('td', 'tracker-list-img', row);
+                    var img = L.DomUtil.create('img', 'tracker-list', el);
+                    img.src = list[key].getIcon().options.iconUrl;
+//                    el.innerHTML = list[key].id;
+                    el = L.DomUtil.create('td', 'tracker-list-id', row);
+                    el.innerHTML = key;
+                }
+                map.listPane = this;
+                return pane;
+            },
+            onRemove: function(map) {
+                delete map.listPane;
+            }
+        })),
         controlPane: new (L.Control.extend({
             options: {position: 'topright',
                 buttons: {
@@ -645,21 +675,20 @@
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
                                         map.consolePane.log(this.searchCriteria.value);
-                                        this.parentElement.removeChild(frm);
-                                        return false;
+                                        map.searchList = map.searchMarkersById(this.searchCriteria.value);
+                                        if (map.searchList.length !== 0) {
+                                            T.UI.listPane.addTo(map);
+                                            this.parentElement.removeChild(frm);
+                                        }
+                                        return false; // disable submit
                                     };
-//                                    e.target.before(frm);
                                     this.insertBefore(frm, e.target);
 //                                    var inp = this.getElementsByClassName('tracker-search')[1];
-//                                    inp.focus();
-//                                    inp.scrollIntoView();
-inp.disabled=false;
-inp.readOnly=false;
-setTimeout(function(el){
-    el.focus();
-}, 500, inp);                                    
+                                    inp.focus();
+                                    inp.scrollIntoView();
                                 } else {
-                                    frm.dispatchEvent(new Event('submit'));
+                                    if (e.target !== frm.searchCriteria)
+                                        frm.dispatchEvent(new Event('submit'));
                                 }
                             });
                         }},
@@ -710,18 +739,6 @@ setTimeout(function(el){
         })),
         addTo: function(map) {
             this.controlPane.addTo(map);
-            (new (L.Control.extend({
-                options: {position: 'topright'
-                },
-                onAdd: function(map) {
-                    var pane = L.DomUtil.create('div', 'tracker-pane');
-                    pane.hidden = true;
-                    map.listPane = this;
-                    return pane;
-                },
-                onRemove: function(map) {
-                }
-            }))).addTo(map);
             this.consolePane.addTo(map);
         }
     };
@@ -756,7 +773,7 @@ setTimeout(function(el){
 //???? heading - latitude
         },
         moveRandom: function(p) {
-            p.heading = this.randDbl(0, 180);
+            p.heading = (this.randInt(p.heading - 45, p.heading + 45) + 360) % 360;
             var dst = this.randDbl(10, 50);
             p.latlng = this.radialDistance(p.latlng, p.heading, dst);
             p.speed = dst / ((Date.now() - p.timestamp) / 1000); //meters per second
@@ -782,6 +799,7 @@ setTimeout(function(el){
                 p.id = 'Demo ' + (i + 1);
                 p.timeout = delay;
                 p.latlng = latlng ? latlng : L.latLng(51.505, -0.09);
+                p.heading = this.randInt(0, 360);
                 this.demos[i] = this.moveRandom(p);
             }
             this.sendAllDemos();

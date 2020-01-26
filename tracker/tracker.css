@@ -4,8 +4,8 @@
  */
 .tracker-pane{
     border: 2px solid black;
-/*    border-radius: 5px;
-    box-shadow: 0 0 2px grey;*/
+    /*    border-radius: 5px;
+        box-shadow: 0 0 2px grey;*/
     background-color: black;
     text-align: left;
     color: white;
@@ -13,7 +13,7 @@
     font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
 .tracker-table-title {
-    
+
 }
 div.tracker-table {
     overflow: auto;
@@ -26,15 +26,32 @@ th.tracker-table {
     white-space: nowrap;
 }
 tr.tracker-table {
-    
+
 }
 td.tracker-table {
     border: 1px solid white;
     white-space: nowrap;
 }
-.tracker-info-table{
+.tracker-info-table,.tracker-list{
     table-layout: fixed;
     border-collapse: collapse;
+}
+img.tracker-list{
+    margin-left: 1px;
+    margin-right: 1px;
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+table.tracker-list{
+    display: block;
+    max-height: 150px;
+    overflow: auto;
+}
+.tracker-list-img{
+    border: 1px solid white;
+    padding: 0px 0px;
 }
 /**/
 .tracker-info-header{
@@ -46,7 +63,7 @@ td.tracker-table {
     border: 1px solid white;
     padding: 0px 5px;
 } 
-.tracker-info-value{
+.tracker-info-value,.tracker-list-id{
     width: 80px; 
     border: 1px solid white;
     padding: 0px 5px;
@@ -57,22 +74,22 @@ td.tracker-table {
 }
 
 .tracker-search{
-/*    display: inline-block;*/
-/*    margin-bottom:5px;*/
-/*    border-radius: 2px;*/
-/*    background-color: black;*/
+    /*    display: inline-block;*/
+    /*    margin-bottom:5px;*/
+    /*    border-radius: 2px;*/
+    /*    background-color: black;*/
     border: 1px solid black;
 }
 form.tracker-search{
     display: inline-block;
-/*   margin: 0px 0px;*/
+    /*   margin: 0px 0px;*/
     padding-left: 4px;
 }
 input.tracker-search{
     vertical-align: middle;
     width: 100px; 
     padding: 0 5px; 
-/*    margin: 0 1px;*/
+    /*    margin: 0 1px;*/
     background-color: white;
     font-weight: bold;
     font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
@@ -87,27 +104,26 @@ div.tracker-button{
     margin-left: 5px;
     margin-bottom: 5px;
     background-color: black;
-/*    border-radius: 5px;*/
+    /*    border-radius: 5px;*/
     border: 1px solid black;
     cursor: pointer;
 }
 img.tracker-button{
-/*    position:relative;
-    z-index: 2;*/
+    /*    position:relative;
+        z-index: 2;*/
     margin-left: 2px;
     margin-right: 2px;
     width: 36px;
     height: 36px;
     vertical-align: middle;
 }
-
 img.tracker-button-checker{
-/*    position:relative;
-    z-index: 3;*/
+    /*    position:relative;
+        z-index: 3;*/
     margin-left: -18px;
     margin-bottom: -15px; 
     width: 18px; 
     height: 18px;
-/*    background-color: black;*/
+    /*    background-color: black;*/
 }
 
