@@ -21,7 +21,7 @@
             }
         },
         locale: {
-            itsmeId: "It's me."
+            itsmeId: 'Own'
         },
         locations: [],
         icons: {},
@@ -217,7 +217,7 @@
     T.onLocationError = function(e) {
         e.message = 'Geolocation: ' + e.message;
         console.log(e.message);
-        T.map.consolePane.log(e.message);
+        T.map.ui.consolePane.log(e.message);
     };
 
     T.onLocation = function(loc) {
@@ -234,7 +234,7 @@
         T.onLocation(a);
     };
     T.actions['message'] = function(a) {
-        T.map.consolePane.log(a.message);
+        T.map.ui.consolePane.log(a.message);
     };
     T.onAction = function(actionObj) {
         var action = T.actions[actionObj.action];
@@ -267,7 +267,7 @@
                     console.log("WebSocket close");
                 };
                 T.webSocket.onerror = function(e) {
-                    T.map.consolePane.log(e.message);
+                    T.map.ui.consolePane.log(e.message);
                     console.log(e.message);
                 };
             } catch (e) {
@@ -315,7 +315,13 @@
 
     T.start = function(opts, mapId, latlng) {
         this.parseOptions(opts);
-        this.map = this._map(mapId).load(latlng);
+        this.map = T._ui.addTo(this._map(mapId)).load(latlng);
+        this.map.once('locationfound', function(e) {
+            T.checkDemoMode(e.latlng);
+        });
+        this.map.once('locationerror', function(e) {
+            T.checkDemoMode();
+        });
         this.checkWebSocket();
         this.checkWatchMode();
         this.checkExpiredLocations();
@@ -340,12 +346,14 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        T.UI.addTo(map);
+
+        map.ui = {}; // user interface
         map.isLoaded = false;
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
         map.accuracyLayer = L.featureGroup(); // markers accuracy
         map.addLayer(map.accuracyLayer);
+
         map.showAccuracy = true;
         map.toggleAccuracy = function() {
             this.showAccuracy = !this.showAccuracy;
@@ -360,13 +368,57 @@
             }
             return this.showAccuracy;
         };
+
         map.markers = [];
+        map.setMarkerOpacity = function(loc, opacity) {
+            var marker = this.markers[loc.id];
+            if (marker)
+                marker.setOpacity(opacity);
+        };
+        map.setMarker = function(loc, icon) {
+            icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
+            var marker = this.markers[loc.id];
+            if (!marker) {
+                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
+                marker.on('click', function(e) {
+                    map.onMarkerClick(e);
+                });
+                marker.addTo(this.markerLayer);
+                marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
+                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
+                this.markers[loc.id] = marker;
+            } else {
+                marker.setLatLng(loc.latlng);
+                marker.accuracyCircle.setLatLng(loc.latlng);
+                marker.accuracyCircle.setRadius(loc.accuracy);
+                marker.setOpacity(1);
+            }
+            marker.location = loc;
+            this.trackMarker(marker);
+            return marker;
+        };
+        map.searchMarkersById = function(pattern) { // locations or fences
+            pattern = '^' + pattern.replace('%', '.{1}').replace('*', '.*') + '$';
+            var list = [];
+            var rex = new RegExp(pattern, 'i');
+            for (var key in map.markers) {
+                if (rex.test(key)) {
+                    list[key] = map.markers[key];
+                }
+            }
+            return list;
+        };
         map.boundMarkers = function() {
             if (this.hasLayer(this.accuracyLayer))
                 var bounds = this.accuracyLayer.getBounds();
             else
                 var bounds = this.markerLayer.getBounds();
             this.fitBounds(bounds);
+        };
+        map.onMarkerClick = function(e) {
+            var id = e.target.options.alt;
+            var marker = this.markers[id];
+            this.startTrack(marker);
         };
 
         map.track = {
@@ -400,34 +452,29 @@
                 if (marker.location.itsme) {
 // disable noSleep 
                     T.noSleep.disable();
-                    this.consolePane.log('NoSleep OFF');
+                    this.ui.consolePane.log('NoSleep OFF');
                 }
                 this.track.marker = undefined;
                 this.track.rubberThread.setLatLngs([]);
-                if (this.infoPane)
-                    this.infoPane.remove(); // removeFrom(this); //0.7.0
+                if (this.ui.infoPane)
+                    this.ui.infoPane.remove(); // removeFrom(this); //0.7.0
 
             } else {
                 if (marker.location.itsme) {
 // enable noSleep 
                     T.noSleep.enable();
-                    this.consolePane.log('NoSleep ON');
+                    this.ui.consolePane.log('NoSleep ON');
                 } else {
 // disable noSleep  
                     T.noSleep.disable();
                 }
                 this.track.init(this);
                 this.track.started = marker.location.timestamp;
-                if (!this.infoPane)
-                    T.UI.infoPane.addTo(this);
+                if (!this.ui.infoPane)
+                    this.ui.infoPaneObj.addTo(this);
                 this.track.marker = marker;
                 this.trackMarker(marker);
             }
-        };
-        map.onMarkerClick = function(e) {
-            var id = e.target.options.alt;
-            var marker = this.markers[id];
-            this.startTrack(marker);
         };
         map.trackMarker = function(marker) {
             if (this.track.marker === marker) {
@@ -453,63 +500,23 @@
                             [this.track.lastLocation.latlng, marker.location.latlng]);
                 }
                 this.setView(marker.location.latlng, this.getZoom());
-                this.infoPane.update(L.Util.extend(marker.location, {
+                this.ui.infoPane.update(L.Util.extend(marker.location, {
                     trackLength: this.track.pathLength,
                     trackTime: marker.location.timestamp - this.track.started,
                     movement: dist
                 }));
             }
         };
-        map.setMarkerOpacity = function(loc, opacity) {
-            var marker = this.markers[loc.id];
-            if (marker)
-                marker.setOpacity(opacity);
-        };
-        map.setMarker = function(loc, icon) {
-            icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
-            var marker = this.markers[loc.id];
-            if (!marker) {
-                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
-                marker.on('click', function(e) {
-                    map.onMarkerClick(e);
-                });
-                marker.addTo(this.markerLayer);
-                marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
-                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
-                this.markers[loc.id] = marker;
-            } else {
-                marker.setLatLng(loc.latlng);
-                marker.accuracyCircle.setLatLng(loc.latlng);
-                marker.accuracyCircle.setRadius(loc.accuracy);
-                marker.setOpacity(1);
-            }
-            marker.location = loc;
-            this.trackMarker(marker);
-            return marker;
-        };
-        map.searchMarkersById = function(pattern) { // locations or fences
-            pattern = '^' + pattern.replace('%', '.{1}').replace('*', '.*') + '$';
-            var list = {};
-            var rex = new RegExp(pattern, 'i');
-            for (var key in map.markers) {
-                if (rex.test(key)) {
-                    list[key] = map.markers[key];
-                }
-            }
-            return list;
-        };
         map.load = function(latlng) {
-            this.on('load', function(e) {
+            this.once('load', function(e) {
                 map.isLoaded = true;
             });
             this.on('locationfound', function(e) {
-                map.consolePane.log();
+                map.ui.consolePane.log();
                 map.setView(e.latlng, this.options.zoom);
-                T.checkDemoMode(e.latlng);
             });
             this.on('locationerror', function(e) {
-                T.checkDemoMode();
-                this.consolePane.log(e.message);
+                this.ui.consolePane.log(e.message);
                 console.log(e.message);
             });
             this.locateOwn(latlng);
@@ -519,15 +526,16 @@
             if (latlng)
                 this.setView(latlng, this.options.zoom);
             else {
-                this.consolePane.log('Expect location...', 120000);
+                this.ui.consolePane.log('Expect location...', 120000);
                 this.locate({setView: false}); // no load event
             }
             return this;
         };
         return map;
     };
-    T.UI = {
-        infoPane: new (L.Control.extend({
+
+    T._ui = {
+        infoPaneObj: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
                 infoData: {id: {nick: 'Track: ', unit: ''},
@@ -545,7 +553,7 @@
                 var pane = L.DomUtil.create('div', 'tracker-pane')
                         , tbl, tbl1, row, el;
                 pane.onclick = function(e) {
-                    var pane = map.infoPane.getContainer();
+                    var pane = map.ui.infoPane.getContainer();
                     if (!pane.style.marginLeft) {
                         pane.style.marginLeft = '-120px';
                     } else {
@@ -570,11 +578,11 @@
                     this.options.infoData[key].element = el;
                 }
 
-                map.infoPane = this;
+                map.ui.infoPane = this;
                 return pane;
             },
             onRemove: function(map) {
-                delete map.infoPane;
+                delete map.ui.infoPane;
             },
             update: function(info) {
                 for (var key in this.options.infoData) {
@@ -601,18 +609,18 @@
                 }
             }
         })),
-        consolePane: new (L.Control.extend({
+        consolePaneObj: new (L.Control.extend({
             options: {position: 'bottomright', element: undefined},
             onAdd: function(map) {
                 var pane = L.DomUtil.create('div', 'tracker-pane');
                 this.options.element = pane;
                 L.DomUtil.create('div', 'tracker-console-message', pane);
                 pane.hidden = true;
-                map.consolePane = this;
+                map.ui.consolePane = this;
                 return pane;
             },
             onRemove: function(map) {
-                delete map.consolePane;
+                delete map.ui.consolePane;
             },
             log: function(m, timeout) {
                 if (m) {
@@ -629,7 +637,7 @@
                 }
             }
         })),
-        listPane: new (L.Control.extend({
+        listPaneObj: new (L.Control.extend({
             options: {
                 position: 'topright'
             },
@@ -637,10 +645,11 @@
                 var pane = L.DomUtil.create('div', 'tracker-pane')
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
-                    if (e.target.classList.contains('tracker-list-img')) {
-                        
-                        map.listPane.remove();
+                    if (e.target.tagName === 'IMG') {
+                        var markerId = e.target.parentNode.parentNode.childNodes[1].innerHTML;
+                        map.startTrack(map.markers[markerId]);
                     }
+                    map.ui.listPane.remove();
                 };
                 tbl = L.DomUtil.create('table', 'tracker-list', pane);
                 for (var key in list) {
@@ -652,14 +661,14 @@
                     el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
                 }
-                map.listPane = this;
+                map.ui.listPane = this;
                 return pane;
             },
             onRemove: function(map) {
-                delete map.listPane;
+                delete map.ui.listPane;
             }
         })),
-        controlPane: new (L.Control.extend({
+        controlPaneObj: new (L.Control.extend({
             options: {position: 'topright',
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
@@ -674,12 +683,13 @@
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
-                                        map.consolePane.log(this.searchCriteria.value);
                                         map.searchList = map.searchMarkersById(this.searchCriteria.value);
-                                        if (map.searchList.length !== 0) {
-                                            T.UI.listPane.addTo(map);
-                                            this.parentElement.removeChild(frm);
+                                        if (Object.keys(map.searchList).length !== 0) {
+                                            map.ui.listPaneObj.addTo(map);
+                                        } else {
+                                            map.ui.consolePane.log('Nothing found');
                                         }
+                                        this.parentElement.removeChild(frm);
                                         return false; // disable submit
                                     };
                                     this.insertBefore(frm, e.target);
@@ -688,7 +698,7 @@
                                     inp.scrollIntoView();
                                 } else {
                                     if (e.target !== frm.searchCriteria)
-                                        frm.dispatchEvent(new Event('submit'));
+                                        frm.onsubmit(frm);//dispatchEvent(new Event('submit'));
                                 }
                             });
                         }},
@@ -731,6 +741,7 @@
                         chk.hidden = !this.options.buttons[key].checked;
                     }
                 }
+                map.ui.controlPane = this;
                 return pane;
             },
             onRemove: function(map) {
@@ -738,8 +749,11 @@
             }
         })),
         addTo: function(map) {
-            this.controlPane.addTo(map);
-            this.consolePane.addTo(map);
+            this.controlPaneObj.addTo(map);
+            this.consolePaneObj.addTo(map);
+            map.ui.infoPaneObj = this.infoPaneObj;
+            map.ui.listPaneObj = this.listPaneObj;
+            return map;
         }
     };
 
