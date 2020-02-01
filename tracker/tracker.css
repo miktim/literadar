@@ -15,8 +15,10 @@
 .tracker-table-title {
 
 }
-div.tracker-list {
-    overflow-y: auto;
+table.tracker-list {
+    position: relative;
+/*    max-height: 150px;*/
+    overflow: auto;
 }
 table.tracker-table {
     table-layout: fixed;
@@ -28,15 +30,23 @@ th.tracker-table {
 tr.tracker-table {
 
 }
-td.tracker-table {
+td.tracker-table, td.tracker-list {
     border: 1px solid white;
     white-space: nowrap;
 }
-.tracker-info-table,.tracker-list{
+.tracker-info-table, .tracker-list{
     table-layout: fixed;
     border-collapse: collapse;
 }
 img.tracker-list{
+    margin-left: 1px;
+    margin-right: 1px;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+img.tracker-list-touch{
     margin-left: 1px;
     margin-right: 1px;
     width: 36px;
@@ -46,9 +56,6 @@ img.tracker-list{
 }
 table.tracker-list{
     display: block;
-    max-height: 80%;
-    line-height: 98%;
-    overflow: auto;
 }
 .tracker-list-img{
     border: 1px solid white;

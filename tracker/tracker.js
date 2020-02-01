@@ -643,28 +643,43 @@
                 position: 'topright'
             },
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'tracker-list')
+                var isTouchDevice = function() {
+// https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
+                    var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
+                    var mq = function(query) {
+                        return window.matchMedia(query).matches;
+                    }
+                    if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
+                        return true;
+                    }
+                    // include the 'heartz' as a way to have a non matching MQ to help terminate the join
+                    // https://git.io/vznFH
+                    var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
+                    return mq(query);
+                };
+                var pane = L.DomUtil.create('div', 'tracker-pane')
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
                     if (e.target.tagName === 'IMG') {
                         var markerId = e.target.parentNode.parentNode.childNodes[1]
-                                .innerHTML;//.split('<br>')[0];
+                                .innerHTML;
                         map.startTrack(map.markers[markerId]);
                     }
                     map.ui.listPane.remove();
                 };
                 tbl = L.DomUtil.create('table', 'tracker-list', pane);
+// max-height on event orientationchange
+                tbl.style.maxHeight = 
+                        (Math.min(screen.width, screen.height) * 0.8) + 'px';
+                var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
                     el = L.DomUtil.create('td', 'tracker-list-img', row);
-                    var img = L.DomUtil.create('img', 'tracker-list', el);
+                    var img = L.DomUtil.create('img', imgStyle, el);
                     img.src = list[key].getIcon().options.iconUrl;
                     el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
-/*                            + ('<br>Timestamp: '
-                                    + (new Date(list[key].location.timestamp))
-                                    .toTimeString().substring(0, 8));
-*/                }
+                }
                 map.ui.listPane = this;
                 return pane;
             },
