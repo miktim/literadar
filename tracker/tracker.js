@@ -670,9 +670,8 @@
                 tbl = L.DomUtil.create('table', 'tracker-list', pane);
 // max-height on event orientationchange
                 tbl.style.maxHeight = Math.round((Math.min(
-                        document.clientWidth,
-                        document.clientHeight) * 0.5)
-                        ) + 'px';
+                        document.documentElement.clientWidth,
+                        document.documentElement.clientHeight) * 0.5)) + 'px';
                 var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-info-row', tbl);

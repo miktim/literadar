@@ -17,7 +17,6 @@
 }
 table.tracker-list {
     position: relative;
-/*    display: inline-block;*/
     overflow: auto;
 }
 table.tracker-table {
