@@ -15,8 +15,8 @@
 .tracker-table-title {
 
 }
-div.tracker-table {
-    overflow: auto;
+div.tracker-list {
+    overflow-y: auto;
 }
 table.tracker-table {
     table-layout: fixed;

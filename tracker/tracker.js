@@ -643,7 +643,7 @@
                 position: 'topright'
             },
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'tracker-pane')
+                var pane = L.DomUtil.create('div', 'tracker-list')
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
                     if (e.target.tagName === 'IMG') {
