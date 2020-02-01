@@ -669,8 +669,10 @@
                 };
                 tbl = L.DomUtil.create('table', 'tracker-list', pane);
 // max-height on event orientationchange
-                tbl.style.maxHeight = 
-                        (Math.min(screen.width, screen.height) * 0.8) + 'px';
+                tbl.style.maxHeight = Math.round((Math.min(
+                        document.clientWidth,
+                        document.clientHeight) * 0.8)
+                        ) + 'px';
                 var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-info-row', tbl);

@@ -17,7 +17,7 @@
 }
 table.tracker-list {
     position: relative;
-/*    max-height: 150px;*/
+/*    display: inline-block;*/
     overflow: auto;
 }
 table.tracker-table {
@@ -38,7 +38,7 @@ td.tracker-table, td.tracker-list {
     table-layout: fixed;
     border-collapse: collapse;
 }
-img.tracker-list{
+img.tracker-list, img.tracker-list-touch{
     margin-left: 1px;
     margin-right: 1px;
     width: 18px;
@@ -47,15 +47,8 @@ img.tracker-list{
     cursor: pointer;
 }
 img.tracker-list-touch{
-    margin-left: 1px;
-    margin-right: 1px;
     width: 36px;
     height: 36px;
-    vertical-align: middle;
-    cursor: pointer;
-}
-table.tracker-list{
-    display: block;
 }
 .tracker-list-img{
     border: 1px solid white;
@@ -72,7 +65,7 @@ table.tracker-list{
     padding: 0px 5px;
 } 
 .tracker-info-value,.tracker-list-id{
-/*    width: 80px; */
+    /*    width: 80px; */
     border: 1px solid white;
     padding: 0px 5px;
 }
@@ -117,8 +110,6 @@ div.tracker-button{
     cursor: pointer;
 }
 img.tracker-button{
-    /*    position:relative;
-        z-index: 2;*/
     margin-left: 2px;
     margin-right: 2px;
     width: 36px;
@@ -126,12 +117,9 @@ img.tracker-button{
     vertical-align: middle;
 }
 img.tracker-button-checker{
-    /*    position:relative;
-        z-index: 3;*/
     margin-left: -18px;
     margin-bottom: -15px; 
     width: 18px; 
     height: 18px;
-    /*    background-color: black;*/
 }
 
