@@ -671,7 +671,7 @@
 // max-height on event orientationchange
                 tbl.style.maxHeight = Math.round((Math.min(
                         document.clientWidth,
-                        document.clientHeight) * 0.8)
+                        document.clientHeight) * 0.5)
                         ) + 'px';
                 var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
                 for (var key in list) {
