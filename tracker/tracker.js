@@ -351,7 +351,7 @@
         map.isLoaded = false;
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
-        map.accuracyLayer = L.featureGroup(); // markers accuracy
+        map.accuracyLayer = L.featureGroup(); // markers accuracy circles
         map.addLayer(map.accuracyLayer);
 
         map.showAccuracy = true;
@@ -398,7 +398,7 @@
             return marker;
         };
         map.searchMarkersById = function(pattern) { // locations or fences
-            pattern = '^' + pattern.replace('%', '.{1}').replace('*', '.*') + '$';
+            pattern = '^' + pattern.replace('?', '.{1}').replace('*', '.*') + '$';
             var list = [];
             var rex = new RegExp(pattern, 'i');
             for (var key in map.markers) {
@@ -471,7 +471,7 @@
                 this.track.init(this);
                 this.track.started = marker.location.timestamp;
                 if (!this.ui.infoPane)
-                    this.ui.infoPaneObj.addTo(this);
+                    this.ui.infoPaneCtl.addTo(this);
                 this.track.marker = marker;
                 this.trackMarker(marker);
             }
@@ -507,6 +507,7 @@
                 }));
             }
         };
+
         map.load = function(latlng) {
             this.once('load', function(e) {
                 map.isLoaded = true;
@@ -522,6 +523,7 @@
             this.locateOwn(latlng);
             return this;
         };
+
         map.locateOwn = function(latlng) {
             if (latlng)
                 this.setView(latlng, this.options.zoom);
@@ -535,7 +537,7 @@
     };
 
     T._ui = {
-        infoPaneObj: new (L.Control.extend({
+        infoPaneCtl: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
                 infoData: {id: {nick: 'Track: ', unit: ''},
@@ -555,7 +557,7 @@
                 pane.onclick = function(e) {
                     var pane = map.ui.infoPane.getContainer();
                     if (!pane.style.marginLeft) {
-                        pane.style.marginLeft = '-120px';
+                        pane.style.marginLeft = '-100px';
                     } else {
                         pane.style.marginLeft = '';
                     }
@@ -577,7 +579,6 @@
                     el = L.DomUtil.create('td', 'tracker-info-value', row);
                     this.options.infoData[key].element = el;
                 }
-
                 map.ui.infoPane = this;
                 return pane;
             },
@@ -609,7 +610,7 @@
                 }
             }
         })),
-        consolePaneObj: new (L.Control.extend({
+        consolePaneCtl: new (L.Control.extend({
             options: {position: 'bottomright', element: undefined},
             onAdd: function(map) {
                 var pane = L.DomUtil.create('div', 'tracker-pane');
@@ -637,7 +638,7 @@
                 }
             }
         })),
-        listPaneObj: new (L.Control.extend({
+        listPaneCtl: new (L.Control.extend({
             options: {
                 position: 'topright'
             },
@@ -646,7 +647,8 @@
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
                     if (e.target.tagName === 'IMG') {
-                        var markerId = e.target.parentNode.parentNode.childNodes[1].innerHTML;
+                        var markerId = e.target.parentNode.parentNode.childNodes[1]
+                                .innerHTML;//.split('<br>')[0];
                         map.startTrack(map.markers[markerId]);
                     }
                     map.ui.listPane.remove();
@@ -657,10 +659,12 @@
                     el = L.DomUtil.create('td', 'tracker-list-img', row);
                     var img = L.DomUtil.create('img', 'tracker-list', el);
                     img.src = list[key].getIcon().options.iconUrl;
-//                    el.innerHTML = list[key].id;
                     el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
-                }
+/*                            + ('<br>Timestamp: '
+                                    + (new Date(list[key].location.timestamp))
+                                    .toTimeString().substring(0, 8));
+*/                }
                 map.ui.listPane = this;
                 return pane;
             },
@@ -668,7 +672,7 @@
                 delete map.ui.listPane;
             }
         })),
-        controlPaneObj: new (L.Control.extend({
+        buttonPaneCtl: new (L.Control.extend({
             options: {position: 'topright',
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
@@ -685,7 +689,7 @@
                                     frm.onsubmit = function() {
                                         map.searchList = map.searchMarkersById(this.searchCriteria.value);
                                         if (Object.keys(map.searchList).length !== 0) {
-                                            map.ui.listPaneObj.addTo(map);
+                                            map.ui.listPaneCtl.addTo(map);
                                         } else {
                                             map.ui.consolePane.log('Nothing found');
                                         }
@@ -741,18 +745,18 @@
                         chk.hidden = !this.options.buttons[key].checked;
                     }
                 }
-                map.ui.controlPane = this;
+                map.ui.buttonPane = this;
                 return pane;
             },
             onRemove: function(map) {
-
+                delete map.ui.buttonPane;
             }
         })),
         addTo: function(map) {
-            this.controlPaneObj.addTo(map);
-            this.consolePaneObj.addTo(map);
-            map.ui.infoPaneObj = this.infoPaneObj;
-            map.ui.listPaneObj = this.listPaneObj;
+            this.buttonPaneCtl.addTo(map);
+            this.consolePaneCtl.addTo(map);
+            map.ui.infoPaneCtl = this.infoPaneCtl;
+            map.ui.listPaneCtl = this.listPaneCtl;
             return map;
         }
     };

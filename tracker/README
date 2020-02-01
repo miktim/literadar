@@ -1,4 +1,4 @@
-# LiteRadar tracker rev 200104 by miktim@mail.ru
+# LiteRadar tracker rev 200201 by miktim@mail.ru
 
 Run demo (the wonderful ideal world): 
   https://miktim.github.io/literadar/tracker?mode=demo,nowatch&track=20:0.5
@@ -18,7 +18,7 @@ URL query parameters (optional, see defaults in tracker.js):
 
   track (track=20:0.5)
     minimalTrackSegmentLength(meters):multiplier(>=0)
-    track_segment_length = max(minimalTrackSegmentLength,
+    trackSegmentLength = max(minimalTrackSegmentLength,
        minimalTrackSegmentLength x speed(meters per second) x multiplier)
 
   ws (ws=undefined) for embedded solutions
