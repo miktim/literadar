@@ -562,18 +562,18 @@
                         pane.style.marginLeft = '';
                     }
                 };
-                el = L.DomUtil.create('div', 'tracker-info-header', pane);
+                el = L.DomUtil.create('div', 'tracker-title', pane);
                 this.options.infoData.id.element = el;
-                tbl = L.DomUtil.create('table', 'tracker-info-table', pane);
-                el = L.DomUtil.create('div', 'tracker-info-header', pane);
+                tbl = L.DomUtil.create('table', 'tracker-table', pane);
+                el = L.DomUtil.create('div', 'tracker-title', pane);
                 el.innerHTML = 'Location:';
-                tbl1 = L.DomUtil.create('table', 'tracker-info-table', pane);
+                tbl1 = L.DomUtil.create('table', 'tracker-table', pane);
                 for (var key in this.options.infoData) {
                     if (key === 'id')
                         continue;
                     if (key === 'timestamp')
                         tbl = tbl1;
-                    row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
+                    row = L.DomUtil.create('tr', 'tracker-row', tbl);
                     el = L.DomUtil.create('td', 'tracker-info-nick', row);
                     el.innerHTML = this.options.infoData[key].nick;
                     el = L.DomUtil.create('td', 'tracker-info-value', row);
@@ -613,9 +613,8 @@
         consolePaneCtl: new (L.Control.extend({
             options: {position: 'bottomright', element: undefined},
             onAdd: function(map) {
-                var pane = L.DomUtil.create('div', 'tracker-pane');
-                this.options.element = pane;
-                L.DomUtil.create('div', 'tracker-console-message', pane);
+                var pane = L.DomUtil.create('div', 'tracker-console');
+//                L.DomUtil.create('div', 'tracker-console-message', pane);
                 pane.hidden = true;
                 map.ui.consolePane = this;
                 return pane;
@@ -624,17 +623,18 @@
                 delete map.ui.consolePane;
             },
             log: function(m, timeout) {
+                var pane = this.getContainer();
                 if (m) {
-                    this.options.element.childNodes[0].innerHTML =
-                            (new Date()).toTimeString().substring(0, 8)
+//                    pane.childNodes[0].innerHTML =
+                    pane.innerHTML = (new Date()).toTimeString().substring(0, 8)
                             + ' ' + m;
-                    this.options.element.hidden = false;
-                    timeout = timeout ? timeout : 10000;
+                    pane.hidden = false;
+                    timeout = timeout || 10000;
                     this.options.timer = setTimeout(function(e) {
                         e.hidden = true;
-                    }, timeout, this.options.element);
+                    }, timeout, pane);
                 } else {
-                    this.options.element.hidden = true;
+                    pane.hidden = true;
                 }
             }
         })),
@@ -648,7 +648,7 @@
                     var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
                     var mq = function(query) {
                         return window.matchMedia(query).matches;
-                    }
+                    };
                     if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
                         return true;
                     }
@@ -657,6 +657,7 @@
                     var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
                     return mq(query);
                 };
+
                 var pane = L.DomUtil.create('div', 'tracker-pane')
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
@@ -668,12 +669,17 @@
                     map.ui.listPane.remove();
                 };
                 var title = L.DomUtil.create('div', 'tracker-title', pane);
-                var scrollDiv =L.DomUtil.create('div', 'tracker-list', pane);
-// max-height on event orientationchange?
-                scrollDiv.style.maxHeight = Math.round((Math.min(
-                        screen.width, screen.height) * 0.5)) + 'px';
+                var scrollDiv = L.DomUtil.create('div', 'tracker-scroll', pane);
+// max-height on event orientationchange? just deprecated!
+                scrollDiv.style.maxHeight = (window.innerHeight - 100) + 'px';
+                this.options.timer = setInterval(function(sd) {
+                    var newHeight = (window.innerHeight - 100) + 'px';
+                    if (newHeight !== sd.style.maxHeight) {
+                        sd.style.maxHeight = newHeight;
+                    }
+                }, 500, scrollDiv);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
-                var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
+                var imgStyle = isTouchDevice() ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-list', tbl);
@@ -683,7 +689,7 @@
                     el = L.DomUtil.create('td', 'tracker-list-img', row);
                     var img = L.DomUtil.create('img', imgStyle, el);
                     img.src = list[key].getIcon().options.iconUrl;
-                    el = L.DomUtil.create('td', 'tracker-list-id', row);
+                    el = L.DomUtil.create('td', 'tracker-list', row);
                     el.innerHTML = key;
                 }
                 title.innerHTML = 'Found: ' + i;
@@ -692,6 +698,7 @@
             },
             onRemove: function(map) {
                 delete map.ui.listPane;
+                clearTimeout(this.options.timer);
             }
         })),
         buttonPaneCtl: new (L.Control.extend({
