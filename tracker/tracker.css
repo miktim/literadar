@@ -29,7 +29,7 @@ tr.tracker-table {
 
 }
 td.tracker-table, td.tracker-list {
-    padding: 0px 3px;
+    padding: 0px 5px;
     border: 1px solid white;
     white-space: nowrap;
 }
