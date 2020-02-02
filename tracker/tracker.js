@@ -8,7 +8,7 @@
         version: '0.0.1',
         isSmallScreen: (screen.width > 500) ? false : true,
         options: {
-            mode: '', // [watch], nowatch, demo
+            mode: 'watch', // watch, nowatch, demo
             ws: '', // websocket address:port
             watch: {
                 timeout: 180000, // milliseconds
@@ -661,26 +661,32 @@
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
                     if (e.target.tagName === 'IMG') {
-                        var markerId = e.target.parentNode.parentNode.childNodes[1]
+                        var markerId = e.target.parentNode.parentNode.childNodes[2]
                                 .innerHTML;
                         map.startTrack(map.markers[markerId]);
                     }
                     map.ui.listPane.remove();
                 };
-                tbl = L.DomUtil.create('table', 'tracker-list', pane);
-// max-height on event orientationchange
-                tbl.style.maxHeight = Math.round((Math.min(
-                        document.documentElement.clientWidth,
-                        document.documentElement.clientHeight) * 0.5)) + 'px';
+                var title = L.DomUtil.create('div', 'tracker-title', pane);
+                var scrollDiv =L.DomUtil.create('div', 'tracker-list', pane);
+// max-height on event orientationchange?
+                scrollDiv.style.maxHeight = Math.round((Math.min(
+                        screen.width, screen.height) * 0.5)) + 'px';
+                tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
                 var imgStyle = isTouchDevice() ? 'tracker-list-touch' : 'tracker-list';
+                var i = 0;
                 for (var key in list) {
-                    row = L.DomUtil.create('tr', 'tracker-info-row', tbl);
+                    row = L.DomUtil.create('tr', 'tracker-list', tbl);
+                    i++;
+                    el = L.DomUtil.create('td', 'tracker-list', row);
+                    el.innerHTML = i.toString();
                     el = L.DomUtil.create('td', 'tracker-list-img', row);
                     var img = L.DomUtil.create('img', imgStyle, el);
                     img.src = list[key].getIcon().options.iconUrl;
                     el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
                 }
+                title.innerHTML = 'Found: ' + i;
                 map.ui.listPane = this;
                 return pane;
             },
