@@ -3,7 +3,7 @@
  * CC-BY-SA (c) 2019 miktim@mail.ru
  */
 .tracker-pane, .tracker-console{
-/*    background-color: black;*/
+    /*    background-color: black;*/
     text-align: left;
     color: white;
     font-weight: bold;
@@ -57,10 +57,10 @@ div.tracker-title{
     padding: 0px 5px;
 }
 /**/
-.tracker-console {
+.tracker-console{
     background-color: black;
     border: 1px solid white;
-    padding: 2px 10px;
+    padding: 0px 10px;
 }
 
 .tracker-search{

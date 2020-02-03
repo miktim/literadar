@@ -34,7 +34,6 @@
                 obj[key] = opts[key];
         return obj;
     };
-
     T.parseOptions = function(opt) {
         T.options.mode = opt.mode;
         T.options.ws = opt.ws;
@@ -74,7 +73,6 @@
     };
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.active = T.makeIcon("./images/phone_b.png");
-
 // https://www.w3.org/TR/wake-lock/
 // https://web.dev/wakelock/
     T.WakeLocker = function() {
@@ -117,7 +115,6 @@
             }
         };
     };
-
     T.Location = function() {
         this.id = ''; // unique source id (string)
         this.itsme = false; // is own location
@@ -130,7 +127,6 @@
         this.timestamp = null; // acquired time in milliseconds
         this.timeout = null; // lifetime in milliseconds?
     };
-
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.locationWatcher = new function() {
@@ -150,7 +146,6 @@
             this.locations = [];
             this.onLocationFound = onFound;
             var lw = this;
-
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
 
@@ -204,7 +199,6 @@
             }
         };
     };
-
     T.onLocationFound = function(l) {
         var loc = new T.Location();
         T.update(loc, T.latLng(l.coords));
@@ -219,7 +213,6 @@
         console.log(e.message);
         T.map.ui.consolePane.log(e.message);
     };
-
     T.onLocation = function(loc) {
         if (!this.map.isLoaded && this.locations.length === 0)
             this.map.setView(loc.latlng, this.map.options.zoom);
@@ -228,7 +221,6 @@
         }
         this.map.setMarker(loc);
     };
-
     T.actions = [];
     T.actions['location'] = function(a) {
         T.onLocation(a);
@@ -246,7 +238,6 @@
         var actionObj = JSON.parse(m);
         T.onAction(actionObj);
     };
-
     T.checkWebSocket = function() {
         if (this.options.ws) {
             var wsurl = (window.location.protocol === 'https:' ?
@@ -275,11 +266,9 @@
             }
         }
     };
-
     T.checkMode = function(mode) {
         return ((new RegExp('(^|,)' + mode + '(,|$)', 'i')).test(this.options.mode));
     };
-
     T.checkWatchMode = function() {
         if (!this.checkMode('nowatch')) {
             this.locationWatcher.start(
@@ -300,7 +289,6 @@
         if (this.checkMode('demo'))
             this.demo.start(5000, latlng);
     };
-
     T.expirationTimer;
     T.checkExpiredLocations = function() {
         if (!this.expirationTimer) {
@@ -312,7 +300,6 @@
             }, 60000);
         }
     };
-
     T.start = function(opts, mapId, latlng) {
         this.parseOptions(opts);
         this.map = T._ui.addTo(this._map(mapId)).load(latlng);
@@ -327,7 +314,6 @@
         this.checkExpiredLocations();
         window.addEventListener('unload', T.stop);
     };
-
     T.stop = function() {
         T.locationWatcher.stop();
         if ('webSocket' in T)
@@ -336,7 +322,6 @@
         T.noSleep.disable();
         T.demo.stop();
     };
-
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
             minZoom: 8,
@@ -346,14 +331,12 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-
         map.ui = {}; // user interface
         map.isLoaded = false;
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
         map.accuracyLayer = L.featureGroup(); // markers accuracy circles
         map.addLayer(map.accuracyLayer);
-
         map.showAccuracy = true;
         map.toggleAccuracy = function() {
             this.showAccuracy = !this.showAccuracy;
@@ -368,7 +351,6 @@
             }
             return this.showAccuracy;
         };
-
         map.markers = [];
         map.setMarkerOpacity = function(loc, opacity) {
             var marker = this.markers[loc.id];
@@ -379,7 +361,7 @@
             icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
             var marker = this.markers[loc.id];
             if (!marker) {
-                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id});
+                marker = L.marker(loc.latlng, {icon: icon, alt: loc.id, title: loc.id});
                 marker.on('click', function(e) {
                     map.onMarkerClick(e);
                 });
@@ -397,11 +379,23 @@
             this.trackMarker(marker);
             return marker;
         };
-        map.searchMarkersById = function(pattern) { // locations or fences
-            pattern = '^' + pattern.replace('?', '.{1}').replace('*', '.*') + '$';
+        map.searchMarkersById = function(pattern) { // markers or geofences
+//            if (!'replaceAll' in String)  // javascript v8
+// https://stackoverflow.com/questions/1144783/how-to-replace-all-occurrences-of-a-string
+                String.prototype.replaceAll =
+                        function(f, r) {
+                            return this.split(f).join(r);
+                        };
+            pattern = '^' + pattern.replaceAll('?', '.{1}')
+                    .replaceAll('*', '.*') + '$';
             var list = [];
-            var rex = new RegExp(pattern, 'i');
-            for (var key in map.markers) {
+            try {// mask regexp {}.[] ... symbols
+                var rex = new RegExp(pattern, 'i');
+            } catch (e) {
+                console.log(e.message);
+                return list;
+            }
+            for (var key in map.markers) { // 
                 if (rex.test(key)) {
                     list[key] = map.markers[key];
                 }
@@ -420,7 +414,6 @@
             var marker = this.markers[id];
             this.startTrack(marker);
         };
-
         map.track = {
             marker: undefined,
             pathLayer: undefined, // polyline
@@ -507,7 +500,6 @@
                 }));
             }
         };
-
         map.load = function(latlng) {
             this.once('load', function(e) {
                 map.isLoaded = true;
@@ -523,7 +515,6 @@
             this.locateOwn(latlng);
             return this;
         };
-
         map.locateOwn = function(latlng) {
             if (latlng)
                 this.setView(latlng, this.options.zoom);
@@ -535,11 +526,27 @@
         };
         return map;
     };
-
     T._ui = {
         infoPaneCtl: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
+/* ????
+ * infoData: { 
+ * tables: [ 
+ * { title: function(data) { return ('Track: ' + data.id);},
+ *   style: [],
+ *   rows: [
+ *     ['DST', function(data) {return (Math.round(data.trackLength) +' m');}],
+ *     ['TTM', function(data) {return ((new Date(data.trackTime)).toISOString()
+ *                                   .substring(11, 19));}]
+ *   ],
+ * },
+ * { title: 'Location:',
+ *   styles: [],
+ *   rows: [
+ *   ]
+ * }]},
+ */                
                 infoData: {id: {nick: 'Track: ', unit: ''},
                     trackLength: {nick: 'DST', unit: 'm'},
                     trackTime: {nick: 'TTM', unit: ''},
@@ -611,10 +618,9 @@
             }
         })),
         consolePaneCtl: new (L.Control.extend({
-            options: {position: 'bottomright', element: undefined},
+            options: {position: 'bottomright', timer: null},
             onAdd: function(map) {
                 var pane = L.DomUtil.create('div', 'tracker-console');
-//                L.DomUtil.create('div', 'tracker-console-message', pane);
                 pane.hidden = true;
                 map.ui.consolePane = this;
                 return pane;
@@ -625,14 +631,15 @@
             log: function(m, timeout) {
                 var pane = this.getContainer();
                 if (m) {
-//                    pane.childNodes[0].innerHTML =
                     pane.innerHTML = (new Date()).toTimeString().substring(0, 8)
                             + ' ' + m;
                     pane.hidden = false;
                     timeout = timeout || 10000;
-                    this.options.timer = setTimeout(function(e) {
-                        e.hidden = true;
-                    }, timeout, pane);
+                    if (this.options.timer) clearTimeout(this.options.timer); 
+                    this.options.timer = setTimeout(function(t) {
+                        t.getContainer().hidden = true;
+                        t.options.timer = null;
+                    }, timeout, this);
                 } else {
                     pane.hidden = true;
                 }
@@ -657,7 +664,6 @@
                     var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
                     return mq(query);
                 };
-
                 var pane = L.DomUtil.create('div', 'tracker-pane')
                         , tbl, row, el, list = map.searchList;
                 pane.onclick = function(e) {
@@ -670,10 +676,11 @@
                 };
                 var title = L.DomUtil.create('div', 'tracker-title', pane);
                 var scrollDiv = L.DomUtil.create('div', 'tracker-scroll', pane);
-// max-height on event orientationchange? just deprecated!
-                scrollDiv.style.maxHeight = (window.innerHeight - 100) + 'px';
+// max-height on event orientationchange? deprecated! CSS?
+                scrollDiv.style.maxHeight = 
+                        ((window.innerHeight||document.documentElement.clientHeight) - 105) + 'px';
                 this.options.timer = setInterval(function(sd) {
-                    var newHeight = (window.innerHeight - 100) + 'px';
+                    var newHeight = ((window.innerHeight||document.documentElement.clientHeight) - 105) + 'px';
                     if (newHeight !== sd.style.maxHeight) {
                         sd.style.maxHeight = newHeight;
                     }
@@ -698,7 +705,7 @@
             },
             onRemove: function(map) {
                 delete map.ui.listPane;
-                clearTimeout(this.options.timer);
+                clearInterval(this.options.timer);
             }
         })),
         buttonPaneCtl: new (L.Control.extend({
@@ -716,11 +723,15 @@
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
                                     frm.onsubmit = function() {
-                                        map.searchList = map.searchMarkersById(this.searchCriteria.value);
-                                        if (Object.keys(map.searchList).length !== 0) {
-                                            map.ui.listPaneCtl.addTo(map);
-                                        } else {
-                                            map.ui.consolePane.log('Nothing found');
+                                        try {
+                                            map.searchList = map.searchMarkersById(this.searchCriteria.value);
+                                            if (Object.keys(map.searchList).length !== 0) {
+                                                map.ui.listPaneCtl.addTo(map);
+                                            } else {
+                                                map.ui.consolePane.log('Nothing found');
+                                            }
+                                        } catch (e) {
+                                            console.log(e.message);
                                         }
                                         this.parentElement.removeChild(frm);
                                         return false; // disable submit
@@ -731,7 +742,7 @@
                                     inp.scrollIntoView();
                                 } else {
                                     if (e.target !== frm.searchCriteria)
-                                        frm.onsubmit(frm);//dispatchEvent(new Event('submit'));
+                                        frm.onsubmit(frm); //dispatchEvent(new Event('submit'));
                                 }
                             });
                         }},
@@ -789,7 +800,6 @@
             return map;
         }
     };
-
     T.demo = {
         isRunning: false,
         demos: [],
