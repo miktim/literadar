@@ -799,6 +799,8 @@
                     }
                 }
                 map.ui.buttonPane = this;
+ L.DomEvent.disableClickPropagation(pane); 
+ L.DomEvent.disableScrollPropagation(pane); 
                 return pane;
             },
             onRemove: function(map) {
