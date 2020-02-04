@@ -11,7 +11,9 @@
 }
 
 div.tracker-scroll {
-    overflow: auto;
+    display: block;
+    scroll-behavior: smooth;
+    overflow-y: auto;
 }
 table.tracker-table, table.tracker-list {
     table-layout: fixed;
@@ -38,6 +40,7 @@ td.tracker-table, td.tracker-list {
     border: 1px solid white;
     padding: 0px 0px;
 }
+
 /**/
 div.tracker-title{
     background-color: darkgray;
@@ -51,10 +54,11 @@ div.tracker-title{
     padding: 0px 5px;
 } 
 .tracker-info-value,.tracker-list-id{
-    /*    width: 80px; */
+    width: 80px; 
     background-color: black;
     border: 1px solid white;
     padding: 0px 5px;
+    text-overflow: clip;
 }
 /**/
 .tracker-console{

@@ -382,14 +382,14 @@
         map.searchMarkersById = function(pattern) { // markers or geofences
 //            if (!'replaceAll' in String)  // javascript v8
 // https://stackoverflow.com/questions/1144783/how-to-replace-all-occurrences-of-a-string
-                String.prototype.replaceAll =
-                        function(f, r) {
-                            return this.split(f).join(r);
-                        };
+            String.prototype.replaceAll =
+                    function(f, r) {
+                        return this.split(f).join(r);
+                    };
             pattern = '^' + pattern.replaceAll('?', '.{1}')
                     .replaceAll('*', '.*') + '$';
             var list = [];
-            try {// mask regexp {}.[] ... symbols
+            try {// mask regexp {}.[] etc symbols
                 var rex = new RegExp(pattern, 'i');
             } catch (e) {
                 console.log(e.message);
@@ -449,18 +449,20 @@
                 }
                 this.track.marker = undefined;
                 this.track.rubberThread.setLatLngs([]);
-                if (this.ui.infoPane)
-                    this.ui.infoPane.remove(); // removeFrom(this); //0.7.0
+//                if (this.ui.infoPane)
+//                    this.ui.infoPane.remove(); // removeFrom(this); //0.7.0
 
             } else {
                 if (marker.location.itsme) {
 // enable noSleep 
                     T.noSleep.enable();
                     this.ui.consolePane.log('NoSleep ON');
-                } else {
-// disable noSleep  
-                    T.noSleep.disable();
                 }
+                /*                } else {
+                 // disable noSleep  
+                 T.noSleep.disable();
+                 }
+                 */
                 this.track.init(this);
                 this.track.started = marker.location.timestamp;
                 if (!this.ui.infoPane)
@@ -482,6 +484,7 @@
                 }
                 if (!this.track.lastLocation || dist >= step) {
 // ???check location 'jump' (dead zone?)
+// replace nodes with heading deviation ~7 degree?
                     this.track.lastLocation = marker.location;
                     this.track.pathLayer.addLatLng(marker.location.latlng);
                     L.circle(marker.location.latlng, marker.accuracyCircle.getRadius(),
@@ -530,23 +533,23 @@
         infoPaneCtl: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
-/* ????
- * infoData: { 
- * tables: [ 
- * { title: function(data) { return ('Track: ' + data.id);},
- *   style: [],
- *   rows: [
- *     ['DST', function(data) {return (Math.round(data.trackLength) +' m');}],
- *     ['TTM', function(data) {return ((new Date(data.trackTime)).toISOString()
- *                                   .substring(11, 19));}]
- *   ],
- * },
- * { title: 'Location:',
- *   styles: [],
- *   rows: [
- *   ]
- * }]},
- */                
+                /* ????
+                 * infoData: { 
+                 * tables: [ 
+                 * { title: function(data) { return ('Track: ' + data.id);},
+                 *   style: [],
+                 *   rows: [
+                 *     ['DST', function(data) {return (Math.round(data.trackLength) +' m');}],
+                 *     ['TTM', function(data) {return ((new Date(data.trackTime)).toISOString()
+                 *                                   .substring(11, 19));}]
+                 *   ],
+                 * },
+                 * { title: 'Location:',
+                 *   styles: [],
+                 *   rows: [
+                 *   ]
+                 * }]},
+                 */
                 infoData: {id: {nick: 'Track: ', unit: ''},
                     trackLength: {nick: 'DST', unit: 'm'},
                     trackTime: {nick: 'TTM', unit: ''},
@@ -635,7 +638,8 @@
                             + ' ' + m;
                     pane.hidden = false;
                     timeout = timeout || 10000;
-                    if (this.options.timer) clearTimeout(this.options.timer); 
+                    if (this.options.timer)
+                        clearTimeout(this.options.timer);
                     this.options.timer = setTimeout(function(t) {
                         t.getContainer().hidden = true;
                         t.options.timer = null;
@@ -677,30 +681,34 @@
                 var title = L.DomUtil.create('div', 'tracker-title', pane);
                 var scrollDiv = L.DomUtil.create('div', 'tracker-scroll', pane);
 // max-height on event orientationchange? deprecated! CSS?
-                scrollDiv.style.maxHeight = 
-                        ((window.innerHeight||document.documentElement.clientHeight) - 105) + 'px';
-                this.options.timer = setInterval(function(sd) {
-                    var newHeight = ((window.innerHeight||document.documentElement.clientHeight) - 105) + 'px';
-                    if (newHeight !== sd.style.maxHeight) {
-                        sd.style.maxHeight = newHeight;
+                var scrollHeight = function(el, dh) {
+                    var newHeight = ((window.innerHeight || document.documentElement.clientHeight) - 105) + 'px';
+                    if (newHeight !== el.style.maxHeight) {
+                        el.style.maxHeight = newHeight;
                     }
-                }, 500, scrollDiv);
+                };
+                scrollHeight(scrollDiv, 105);
+                this.options.timer = setInterval(scrollHeight
+                        , 500, scrollDiv, 105);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
                 var imgStyle = isTouchDevice() ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-list', tbl);
-                    i++;
-                    el = L.DomUtil.create('td', 'tracker-list', row);
-                    el.innerHTML = i.toString();
                     el = L.DomUtil.create('td', 'tracker-list-img', row);
                     var img = L.DomUtil.create('img', imgStyle, el);
                     img.src = list[key].getIcon().options.iconUrl;
+                    i++;
                     el = L.DomUtil.create('td', 'tracker-list', row);
+                    el.innerHTML = i.toString() 
+                            + (map.track.marker === list[key] ? '*' : '');
+                    el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
                 }
                 title.innerHTML = 'Found: ' + i;
                 map.ui.listPane = this;
+ L.DomEvent.disableClickPropagation(pane); 
+ L.DomEvent.disableScrollPropagation(pane); 
                 return pane;
             },
             onRemove: function(map) {
@@ -713,19 +721,24 @@
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
                     btnSearch: {
+//                        searchCriteria: '', searchList: [],
                         img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
                                 var frm = this.getElementsByClassName('tracker-search')[0];
+// var _this = map.ui.buttonPane.options.buttons.btnSearch                                           
                                 if (!frm) {
                                     frm = L.DomUtil.create('form', 'tracker-search');
                                     var inp = L.DomUtil.create('input', 'tracker-search', frm);
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
+// inp.value = _this.searchCriteria;
                                     frm.onsubmit = function() {
                                         try {
                                             map.searchList = map.searchMarkersById(this.searchCriteria.value);
+// _this.searchList =  map.searchMarkersById(this.searchCriteria.value);                                          
                                             if (Object.keys(map.searchList).length !== 0) {
+// _this.searchCriteria =  this.searchCriteria.value;                                               
                                                 map.ui.listPaneCtl.addTo(map);
                                             } else {
                                                 map.ui.consolePane.log('Nothing found');
