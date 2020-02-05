@@ -331,8 +331,10 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+        
         map.ui = {}; // user interface
-        map.isLoaded = false;
+
+        map.isLoaded = false; //
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
         map.accuracyLayer = L.featureGroup(); // markers accuracy circles
@@ -443,26 +445,19 @@
         map.startTrack = function(marker) {
             if (this.track.marker === marker) {
                 if (marker.location.itsme) {
-// disable noSleep 
                     T.noSleep.disable();
                     this.ui.consolePane.log('NoSleep OFF');
                 }
                 this.track.marker = undefined;
                 this.track.rubberThread.setLatLngs([]);
-//                if (this.ui.infoPane)
-//                    this.ui.infoPane.remove(); // removeFrom(this); //0.7.0
+                if (this.ui.infoPane)
+                    this.ui.infoPane.remove(); // removeFrom(this); //0.7.0
 
             } else {
                 if (marker.location.itsme) {
-// enable noSleep 
                     T.noSleep.enable();
                     this.ui.consolePane.log('NoSleep ON');
                 }
-                /*                } else {
-                 // disable noSleep  
-                 T.noSleep.disable();
-                 }
-                 */
                 this.track.init(this);
                 this.track.started = marker.location.timestamp;
                 if (!this.ui.infoPane)
@@ -483,8 +478,8 @@
                             * dist * 1000 / (marker.location.timestamp - this.track.lastLocation.timestamp));
                 }
                 if (!this.track.lastLocation || dist >= step) {
-// ???check location 'jump' (dead zone?)
-// replace nodes with heading deviation ~7 degree?
+// ???check location 'jumps' (dead zone?)
+// replace last node with heading deviation ~7 degree?
                     this.track.lastLocation = marker.location;
                     this.track.pathLayer.addLatLng(marker.location.latlng);
                     L.circle(marker.location.latlng, marker.accuracyCircle.getRadius(),
@@ -533,23 +528,7 @@
         infoPaneCtl: new (L.Control.extend({
             options: {
                 position: 'bottomleft',
-                /* ????
-                 * infoData: { 
-                 * tables: [ 
-                 * { title: function(data) { return ('Track: ' + data.id);},
-                 *   style: [],
-                 *   rows: [
-                 *     ['DST', function(data) {return (Math.round(data.trackLength) +' m');}],
-                 *     ['TTM', function(data) {return ((new Date(data.trackTime)).toISOString()
-                 *                                   .substring(11, 19));}]
-                 *   ],
-                 * },
-                 * { title: 'Location:',
-                 *   styles: [],
-                 *   rows: [
-                 *   ]
-                 * }]},
-                 */
+// !!! dumb code
                 infoData: {id: {nick: 'Track: ', unit: ''},
                     trackLength: {nick: 'DST', unit: 'm'},
                     trackTime: {nick: 'TTM', unit: ''},
@@ -590,6 +569,8 @@
                     this.options.infoData[key].element = el;
                 }
                 map.ui.infoPane = this;
+                L.DomEvent.disableClickPropagation(pane);
+                L.DomEvent.disableScrollPropagation(pane);
                 return pane;
             },
             onRemove: function(map) {
@@ -654,22 +635,8 @@
                 position: 'topright'
             },
             onAdd: function(map) {
-                var isTouchDevice = function() {
-// https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
-                    var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
-                    var mq = function(query) {
-                        return window.matchMedia(query).matches;
-                    };
-                    if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
-                        return true;
-                    }
-                    // include the 'heartz' as a way to have a non matching MQ to help terminate the join
-                    // https://git.io/vznFH
-                    var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
-                    return mq(query);
-                };
                 var pane = L.DomUtil.create('div', 'tracker-pane')
-                        , tbl, row, el, list = map.searchList;
+                        , tbl, row, el, list = map.listOfFound;
                 pane.onclick = function(e) {
                     if (e.target.tagName === 'IMG') {
                         var markerId = e.target.parentNode.parentNode.childNodes[2]
@@ -691,6 +658,22 @@
                 this.options.timer = setInterval(scrollHeight
                         , 500, scrollDiv, 105);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
+                
+                var isTouchDevice = function() {
+// https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
+                    var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
+                    var mq = function(query) {
+                        return window.matchMedia(query).matches;
+                    };
+                    if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
+                        return true;
+                    }
+                    // include the 'heartz' as a way to have a non matching MQ to help terminate the join
+                    // https://git.io/vznFH
+                    var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
+                    return mq(query);
+                };
+// L.Browser.touch vs isTouchDevice()
                 var imgStyle = isTouchDevice() ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
@@ -700,15 +683,15 @@
                     img.src = list[key].getIcon().options.iconUrl;
                     i++;
                     el = L.DomUtil.create('td', 'tracker-list', row);
-                    el.innerHTML = i.toString() 
+                    el.innerHTML = i.toString()
                             + (map.track.marker === list[key] ? '*' : '');
                     el = L.DomUtil.create('td', 'tracker-list-id', row);
                     el.innerHTML = key;
                 }
                 title.innerHTML = 'Found: ' + i;
                 map.ui.listPane = this;
- L.DomEvent.disableClickPropagation(pane); 
- L.DomEvent.disableScrollPropagation(pane); 
+                L.DomEvent.disableClickPropagation(pane);
+                L.DomEvent.disableScrollPropagation(pane);
                 return pane;
             },
             onRemove: function(map) {
@@ -721,26 +704,28 @@
                 buttons: {
 // btnMenu: {img: './images/btn_menu.png', onclick: undefined},
                     btnSearch: {
-//                        searchCriteria: '', searchList: [],
+//                      listOfFound: [],
                         img: './images/btn_search.png',
                         onclick: function(map) {
                             return (function(e) {
                                 var frm = this.getElementsByClassName('tracker-search')[0];
-// var _this = map.ui.buttonPane.options.buttons.btnSearch                                           
                                 if (!frm) {
+                                    if('listPane' in map.ui)
+                                        map.ui.listPane.remove();
                                     frm = L.DomUtil.create('form', 'tracker-search');
+                                    frm.hided = true;
                                     var inp = L.DomUtil.create('input', 'tracker-search', frm);
                                     inp.type = 'text';
                                     inp.name = 'searchCriteria';
-// inp.value = _this.searchCriteria;
+                                    inp.autocomplete = 'on';
                                     frm.onsubmit = function() {
                                         try {
-                                            map.searchList = map.searchMarkersById(this.searchCriteria.value);
-// _this.searchList =  map.searchMarkersById(this.searchCriteria.value);                                          
-                                            if (Object.keys(map.searchList).length !== 0) {
-// _this.searchCriteria =  this.searchCriteria.value;                                               
+                                            map.listOfFound = map.searchMarkersById(inp.value);
+                                            if (Object.keys(map.listOfFound).length !== 0) {
+// ??? var list = map.ui.buttonPane.options.buttons.btnSearch.listOfFound                                          
+// ??? pass listOfFound to addTo
                                                 map.ui.listPaneCtl.addTo(map);
-                                            } else {
+                                            } else if(inp.value){
                                                 map.ui.consolePane.log('Nothing found');
                                             }
                                         } catch (e) {
@@ -750,7 +735,7 @@
                                         return false; // disable submit
                                     };
                                     this.insertBefore(frm, e.target);
-//                                    var inp = this.getElementsByClassName('tracker-search')[1];
+                                    frm.hidden = false;
                                     inp.focus();
                                     inp.scrollIntoView();
                                 } else {
@@ -766,6 +751,7 @@
                                 this.childNodes[1].hidden = !map.toggleAccuracy();
                             });
                         },
+                        checkerImg: './images/btn_checker.png',
                         checked: true},
                     btnBound: {
                         img: './images/btn_bound.png',
@@ -785,22 +771,22 @@
             },
             onAdd: function(map) {
                 var pane = L.DomUtil.create('div', 'tracker-buttons-pane')
-                        , div, btn, chk;
+                        , img, btn, chk;
                 for (var key in this.options.buttons) {
-                    div = L.DomUtil.create('div', 'tracker-button', pane);
-                    btn = L.DomUtil.create('img', 'tracker-button', div);
-                    btn.src = this.options.buttons[key].img;
+                    btn = L.DomUtil.create('div', 'tracker-button', pane);
+                    img = L.DomUtil.create('img', 'tracker-button', btn);
+                    img.src = this.options.buttons[key].img;
                     if (this.options.buttons[key].onclick)
-                        div.onclick = this.options.buttons[key].onclick(map);
+                        btn.onclick = this.options.buttons[key].onclick(map);
                     if ('checked' in this.options.buttons[key]) {
-                        chk = L.DomUtil.create('img', 'tracker-button-checker', div);
-                        chk.src = './images/btn_checker.png';
+                        chk = L.DomUtil.create('img', 'tracker-button-checker', btn)
+                        chk.src = this.options.buttons[key].checkerImg;
                         chk.hidden = !this.options.buttons[key].checked;
                     }
                 }
                 map.ui.buttonPane = this;
- L.DomEvent.disableClickPropagation(pane); 
- L.DomEvent.disableScrollPropagation(pane); 
+                L.DomEvent.disableClickPropagation(pane);
+                L.DomEvent.disableScrollPropagation(pane);
                 return pane;
             },
             onRemove: function(map) {
@@ -842,7 +828,7 @@
             var λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(φ1),
                     Math.cos(d / R) - Math.sin(φ1) * Math.sin(φ2));
             return {lat: φ2 / RpD, lng: ((λ2 / RpD) + 540) % 360 - 180};
-//???? heading - latitude
+//??? heading - latitude
         },
         moveRandom: function(p) {
             p.heading = (this.randInt(p.heading - 45, p.heading + 45) + 360) % 360;
@@ -865,7 +851,7 @@
             if (this.isRunning)
                 return;
             this.isRunning = true;
-            for (var i = 0; i < 5; i++) {
+            for (var i = 0; i < 50; i++) {
                 var p = new T.Location();
                 p.action = 'location';
                 p.id = 'Demo ' + (i + 1);
