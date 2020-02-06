@@ -40,11 +40,10 @@
         })(),
         locations: [],
         icons: {},
-        map: undefined
+        map: null
     };
-
     window.T = T;
-
+    
     T.makeIcon = function(url, isz) {
         isz = isz || 32;
         return L.icon({
@@ -55,35 +54,47 @@
     };
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.default = T.makeIcon("./images/phone_b.png");
-
     T.update = function(obj, opts) {
         for (var key in opts)
             if (key in obj)
                 obj[key] = opts[key];
         return obj;
     };
-    T.parseOptions = function(opt) {
-        T.options.mode = opt.mode;
-        T.options.ws = opt.ws;
-        if ('watch' in opt) {
-            var val = (opt.watch + '::').split(':');
-            if (parseInt(val[0]))
-                this.options.watch.timeout = parseInt(val[0]) * 1000;
-            if (parseFloat(val[1])) // Infinity
-                this.options.watch.maximumAge = parseFloat(val[1]) * 1000;
-            if (val[2] === 't')
-                this.options.watch.enableHighAccuracy = true;
-            if (val[2] === 'f')
-                this.options.watch.enableHighAccuracy = false;
+    
+// set html options
+    (function() { 
+        if (location.search) {
+            try {
+// https://stackoverflow.com/questions/8648892/convert-url-parameters-to-a-javascript-object
+                var search = location.search.substring(1);
+                var hOptions = JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}',
+                        function(key, value) {
+                            return key === "" ? value : decodeURIComponent(value);
+                        });
+                T.options.mode = hOptions.mode ? hOptions.mode : T.options.mode;
+                T.options.ws = hOptions.ws ? hOptions.ws : T.options.ws;
+                if ('watch' in hOptions) {
+                    var val = (hOptions.watch + '::').split(':');
+                    if (parseInt(val[0]))
+                        T.options.watch.timeout = parseInt(val[0]) * 1000;
+                    if (parseFloat(val[1])) // Infinity
+                        T.options.watch.maximumAge = parseFloat(val[1]) * 1000;
+                    if (val[2] === 'f')
+                        T.options.watch.enableHighAccuracy = false;
+                }
+                if ('track' in hOptions) {
+                    var val = (hOptions.track + ':').split(':');
+                    if (parseInt(val[0]))
+                        T.options.track.minDistance = parseInt(val[0]);
+                    if (parseFloat(val[1]))
+                        T.options.track.multiplier = parseFloat(val[1]);
+                }
+            } catch (e) {
+                console.log(e.message);
+            }
         }
-        if ('track' in opt) {
-            var val = (opt.track + ':').split(':');
-            if (parseInt(val[0]))
-                this.options.track.minDistance = parseInt(val[0]);
-            if (parseFloat(val[1]))
-                this.options.track.multiplier = parseFloat(val[1]);
-        }
-    };
+    })();
+
     T.latLng = function(obj) {
         if (Array.isArray(obj.latlng))
             obj.latlng = {lat: obj.latlng[0], lng: obj.latlng[1]};
@@ -239,22 +250,26 @@
         }
         this.map.setMarker(loc);
     };
-    T.actions = [];
-    T.actions['location'] = function(a) {
+    T.actions = {};
+    T.actions.location = function(a) {
         T.onLocation(a);
     };
-    T.actions['message'] = function(a) {
+    T.actions.message = function(a) {
         T.map.ui.consolePane.log(a.message);
     };
-    T.onAction = function(actionObj) {
-        var action = T.actions[actionObj.action];
-        if (action) {
-            action(actionObj);
+    T.actions.answer = function(a) {
+        if ('sendJSONMessage' in T) {
+            T.sendJSONMessage(JSON.stringify(a));
         }
     };
-    T.onJSONmessage = function(m) {
-        var actionObj = JSON.parse(m);
-        T.onAction(actionObj);
+    T.onJSONMessage = function(m) {
+        try {
+            var actionObj = JSON.parse(m);
+            var action = actionObj.action;
+            T.actions[action](actionObj);
+        } catch (e) {
+            T.actions.answer({event: 'error', action: action, error: e});
+        }
     };
     T.checkWebSocket = function() {
         if (this.options.ws) {
@@ -265,15 +280,16 @@
                 if ('webSocket' in T)
                     T.webSocket.close();
                 T.webSocket = new WebSocket(wsurl);
-                T.webSocket.onmessage = T.onJSONmessage;
+                T.webSocket.onmessage = T.onJSONMessage;
                 T.webSocket.onopen = function(e) {
-                    T.sendJSONmessage = function(m) {
+                    T.sendJSONMessage = function(m) {
                         T.webSocket.send(m);
                     };
                     console.log('WebSocket open');
                 };
                 T.webSocket.onclose = function(e) {
                     console.log("WebSocket close");
+                    delete T.sendJSONMessage;
                 };
                 T.webSocket.onerror = function(e) {
                     T.map.ui.consolePane.log(e.message);
@@ -319,11 +335,11 @@
         }
     };
     T.start = function(mapId, opts) {
-        this.parseOptions(opts);
+        T.options = T.update(T.options, opts);
         this.map = T._ui.addTo(this._map(mapId)).load();
+        T.checkWatchMode();
         this.map.once('locationfound', function(e) {
             T.checkDemoMode(e.latlng);
-            T.checkWatchMode();
         });
         this.map.once('locationerror', function(e) {
             T.checkDemoMode();
@@ -350,7 +366,6 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-
         map.ui = {}; // user interface
 
         map.isLoaded = false; //
@@ -677,7 +692,6 @@
                 this.options.timer = setInterval(scrollHeight
                         , 500, scrollDiv, 105);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
-
                 var imgStyle = T.touchDevice ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
@@ -785,7 +799,7 @@
                     if (this.options.buttons[key].onclick)
                         btn.onclick = this.options.buttons[key].onclick(map);
                     if ('checked' in this.options.buttons[key]) {
-                        chk = L.DomUtil.create('img', 'tracker-button-checker', btn)
+                        chk = L.DomUtil.create('img', 'tracker-button-checker', btn);
                         chk.src = this.options.buttons[key].checkerImg;
                         chk.hidden = !this.options.buttons[key].checked;
                     }
@@ -851,7 +865,7 @@
             }
         },
         sendDemo: function(d) {
-            T.onJSONmessage(JSON.stringify(d));
+            T.onJSONMessage(JSON.stringify(d));
         },
         start: function(delay, latlng) { // milliseconds, initial position
             if (this.isRunning)
@@ -870,7 +884,7 @@
             this.timer = setInterval(function(d) {
                 d.sendAllDemos();
             }, delay, this); //!IE9
-            T.onJSONmessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
+            T.onJSONMessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
         },
         stop: function() {
             if (this.timer)
