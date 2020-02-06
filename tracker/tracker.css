@@ -7,7 +7,7 @@
     text-align: left;
     color: white;
     font-weight: bold;
-    font: 15px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+    font: 16px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
 
 div.tracker-scroll {
@@ -77,10 +77,11 @@ form.tracker-search{
 input.tracker-search{
     vertical-align: middle;
     width: 100px; 
-    padding: 0 2px; /* 0 5px */ 
+    padding: 0 5px; /* 0 5px */ 
     background-color: white;
     font-weight: bold;
-    font: 18px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+    font: 16px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
+    border: none;
 }
 
 .tracker-button{

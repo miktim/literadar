@@ -6,7 +6,6 @@
 (function(window, document) {
     T = {
         version: '0.0.1',
-        isSmallScreen: (screen.width > 500) ? false : true,
         options: {
             mode: 'watch', // watch, nowatch, demo
             ws: '', // websocket address:port
@@ -21,13 +20,42 @@
             }
         },
         locale: {
-            itsmeId: 'Own'
+            ownId: 'Own'
         },
+        smallDevice: (Math.min(screen.width, screen.height) > 500) ? false : true,
+        touchDevice: (function() {
+// https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
+// L.Browser.touch not applicable
+            var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
+            var mq = function(query) {
+                return window.matchMedia(query).matches;
+            };
+            if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
+                return true;
+            }
+            // include the 'heartz' as a way to have a non matching MQ to help terminate the join
+            // https://git.io/vznFH
+            var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
+            return mq(query);
+        })(),
         locations: [],
         icons: {},
         map: undefined
     };
+
     window.T = T;
+
+    T.makeIcon = function(url, isz) {
+        isz = isz || 32;
+        return L.icon({
+            iconSize: [isz, isz],
+            iconAnchor: [isz / 2, isz],
+            iconUrl: url
+        });
+    };
+    T.icons.own = T.makeIcon("./images/phone_y.png");
+    T.icons.default = T.makeIcon("./images/phone_b.png");
+
     T.update = function(obj, opts) {
         for (var key in opts)
             if (key in obj)
@@ -63,16 +91,6 @@
             obj.latlng = {lat: obj.latitude, lng: obj.longitude};
         return obj;
     };
-    T.makeIcon = function(url, isz) {
-        isz = isz || 32;
-        return L.icon({
-            iconSize: [isz, isz],
-            iconAnchor: [isz / 2, isz],
-            iconUrl: url
-        });
-    };
-    T.icons.own = T.makeIcon("./images/phone_y.png");
-    T.icons.active = T.makeIcon("./images/phone_b.png");
 // https://www.w3.org/TR/wake-lock/
 // https://web.dev/wakelock/
     T.WakeLocker = function() {
@@ -202,7 +220,7 @@
     T.onLocationFound = function(l) {
         var loc = new T.Location();
         T.update(loc, T.latLng(l.coords));
-        loc.id = T.locale.itsmeId;
+        loc.id = T.locale.ownId;
         loc.itsme = true;
         loc.timestamp = l.timestamp;
         loc.timeout = T.options.watch.timeout;
@@ -300,17 +318,17 @@
             }, 60000);
         }
     };
-    T.start = function(opts, mapId, latlng) {
+    T.start = function(mapId, opts) {
         this.parseOptions(opts);
-        this.map = T._ui.addTo(this._map(mapId)).load(latlng);
+        this.map = T._ui.addTo(this._map(mapId)).load();
         this.map.once('locationfound', function(e) {
             T.checkDemoMode(e.latlng);
+            T.checkWatchMode();
         });
         this.map.once('locationerror', function(e) {
             T.checkDemoMode();
         });
         this.checkWebSocket();
-        this.checkWatchMode();
         this.checkExpiredLocations();
         window.addEventListener('unload', T.stop);
     };
@@ -321,6 +339,7 @@
         clearTimeout(T.expirationTimer);
         T.noSleep.disable();
         T.demo.stop();
+        T.map.remove();
     };
     T._map = function(mapId, latlng) {
         var map = L.map(mapId, {
@@ -331,7 +350,7 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        
+
         map.ui = {}; // user interface
 
         map.isLoaded = false; //
@@ -360,7 +379,7 @@
                 marker.setOpacity(opacity);
         };
         map.setMarker = function(loc, icon) {
-            icon = icon || (loc.itsme ? T.icons.own : T.icons.active);
+            icon = icon || (loc.itsme ? T.icons.own : T.icons.default);
             var marker = this.markers[loc.id];
             if (!marker) {
                 marker = L.marker(loc.latlng, {icon: icon, alt: loc.id, title: loc.id});
@@ -658,23 +677,8 @@
                 this.options.timer = setInterval(scrollHeight
                         , 500, scrollDiv, 105);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
-                
-                var isTouchDevice = function() {
-// https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
-                    var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
-                    var mq = function(query) {
-                        return window.matchMedia(query).matches;
-                    };
-                    if (('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch) {
-                        return true;
-                    }
-                    // include the 'heartz' as a way to have a non matching MQ to help terminate the join
-                    // https://git.io/vznFH
-                    var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
-                    return mq(query);
-                };
-// L.Browser.touch vs isTouchDevice()
-                var imgStyle = isTouchDevice() ? 'tracker-button' : 'tracker-list';
+
+                var imgStyle = T.touchDevice ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-list', tbl);
@@ -710,7 +714,7 @@
                             return (function(e) {
                                 var frm = this.getElementsByClassName('tracker-search')[0];
                                 if (!frm) {
-                                    if('listPane' in map.ui)
+                                    if ('listPane' in map.ui)
                                         map.ui.listPane.remove();
                                     frm = L.DomUtil.create('form', 'tracker-search');
                                     frm.hided = true;
@@ -725,7 +729,7 @@
 // ??? var list = map.ui.buttonPane.options.buttons.btnSearch.listOfFound                                          
 // ??? pass listOfFound to addTo
                                                 map.ui.listPaneCtl.addTo(map);
-                                            } else if(inp.value){
+                                            } else if (inp.value) {
                                                 map.ui.consolePane.log('Nothing found');
                                             }
                                         } catch (e) {
@@ -735,9 +739,11 @@
                                         return false; // disable submit
                                     };
                                     this.insertBefore(frm, e.target);
-                                    frm.hidden = false;
-                                    inp.focus();
-                                    inp.scrollIntoView();
+                                    setTimeout(function() { //delay for renderer
+                                        frm.hidden = false;
+                                        inp.focus();
+                                        inp.scrollIntoView();
+                                    }, 100);
                                 } else {
                                     if (e.target !== frm.searchCriteria)
                                         frm.onsubmit(frm); //dispatchEvent(new Event('submit'));
