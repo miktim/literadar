@@ -156,7 +156,7 @@
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.locationWatcher = new function() {
-        this.watchId = undefined;
+        this.watchId;
         this.start = function(onFound, onError, options) {
             if (!('geolocation' in navigator)) {
                 onError({
@@ -167,7 +167,7 @@
             }
             if (this.watchId)
                 this.stop();
-            this.lastLocation = undefined;
+            this.lastLocation;
             this.isFree = true;
             this.locations = [];
             this.onLocationFound = onFound;
@@ -175,10 +175,23 @@
             this.watchId = navigator.geolocation.watchPosition(
                     function(l) {
 
-                        if (!lw.lastLocation || lw.lastLocation.timestamp < l.timestamp) {
+                        if (!lw.lastLocation) {
                             lw.lastLocation = l;
-                            lw.onLocationFound(l);
                         }
+                        if (lw.lastLocation.timestamp > l.timestamp) {
+                            console.log('Geolocation: WATCH ignore location');
+                            return;
+                        }
+                        lw.locations.push(l);
+                        if (lw.locations.length > 1) {
+                            var loc1 = lw.locations.shift();
+                            var loc2 = lw.locations.shift();
+                            if (loc1.coords.accuracy > loc2.coords.accuracy)
+                                lw.lastlocation = loc2;
+                            else
+                                lw.lastlocation = loc1;
+                            lw.onLocationFound(lw.lastlocation);
+                        } 
 
                         /*                        
                          if (!lw.lastLocation) {
@@ -221,7 +234,7 @@
         this.stop = function() {
             if (this.watchId) {
                 navigator.geolocation.clearWatch(this.watchId);
-                this.watchId = undefined;
+                this.watchId = null;
             }
         };
     };
@@ -237,11 +250,11 @@
     T.onLocationError = function(e) {
         e.message = 'Geolocation: ' + e.message;
         console.log(e.message);
-        T.map.ui.consolePane.log(e.message);
+        T.map.ui.consolePane.log('WATCH: ' + e.message);
     };
     T.onLocation = function(loc) {
         if (!this.map.isLoaded) {
-            this.map.setView(loc.latlng, this.map.options.zoom);
+            this.map.setView(loc.latlng, this.map.options.zoom); //Firefox?
             this.map.isLoaded = true;
         }
         if (!this.locations[loc.id]) {
@@ -365,11 +378,12 @@
         L.tileLayer(window.location.protocol + '//{s}.tile.osm.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        map.fitWorld().setZoom(2);
-        
-        map.ui = {}; // user interface
 
         map.isLoaded = false; //
+        map.fitWorld().setZoom(2);
+
+        map.ui = {}; // user interface
+
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
         map.accuracyLayer = L.featureGroup(); // markers accuracy circles
