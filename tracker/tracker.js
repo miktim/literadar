@@ -5,7 +5,7 @@
 
 (function(window, document) {
     T = {
-        version: '0.0.1',
+        version: '0.0.2',
         options: {
             mode: 'watch', // watch, nowatch, demo
             ws: '', // websocket address:port
@@ -22,8 +22,8 @@
         locale: {
             ownId: 'Own'
         },
-        smallDevice: (Math.min(screen.width, screen.height) > 500) ? false : true,
-        touchDevice: (function() {
+        smallScreen: (Math.min(screen.width, screen.height) > 500) ? false : true,
+        touchScreen: (function() {
 // https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
 // L.Browser.touch not applicable
             var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ');
@@ -53,6 +53,7 @@
     };
     T.icons.own = T.makeIcon("./images/phone_y.png");
     T.icons.default = T.makeIcon("./images/phone_b.png");
+
     T.update = function(obj, opts) {
         for (var key in opts)
             if (key in obj)
@@ -191,7 +192,7 @@
                             else
                                 lw.lastlocation = loc1;
                             lw.onLocationFound(lw.lastlocation);
-                        } 
+                        }
 
                         /*                        
                          if (!lw.lastLocation) {
@@ -335,10 +336,10 @@
         if (this.checkMode('demo'))
             this.demo.start(5000, latlng);
     };
-    T.expirationTimer;
-    T.checkExpiredLocations = function() {
-        if (!this.expirationTimer) {
-            this.expirationTimer = setInterval(function() {
+    T.outdateInterval;
+    T.outdateChecker = function() {
+        if (!this.outdateInterval) {
+            this.outdateInterval = setInterval(function() {
                 for (var id in T.locations) {
                     if (T.locations[id].timestamp + T.locations[id].timeout < Date.now())
                         T.map.setMarkerOpacity(T.locations[id], 0.4);
@@ -348,23 +349,25 @@
     };
     T.start = function(mapId, opts) {
         T.options = T.update(T.options, opts);
-        this.map = T._ui.addTo(this._map(mapId)).load();
-        T.checkWatchMode();
+        this.map = this._map(mapId);
+        T._ui.addTo(this.map);
         this.map.once('locationfound', function(e) {
             T.checkDemoMode(e.latlng);
         });
         this.map.once('locationerror', function(e) {
             T.checkDemoMode();
         });
+        this.map.locateView();
+        T.checkWatchMode();
         this.checkWebSocket();
-        this.checkExpiredLocations();
+        this.outdateChecker();
         window.addEventListener('unload', T.stop);
     };
     T.stop = function() {
         T.locationWatcher.stop();
         if ('webSocket' in T)
             T.webSocket.close();
-        clearTimeout(T.expirationTimer);
+        clearInterval(T.outdateInterval);
         T.noSleep.disable();
         T.demo.stop();
         T.map.remove();
@@ -380,9 +383,28 @@
         }).addTo(map);
 
         map.isLoaded = false; //
-        map.fitWorld().setZoom(2);
+        map.fitWorld({padding: [0,-1000]});//.setZoom(T.smallScreen ? 1 : 2);
 
         map.ui = {}; // user interface
+        map.on('locationfound', function(e) {
+            map.ui.consolePane.log(); // clear message
+            map.setView(e.latlng, map.options.zoom);
+        });
+        map.on('locationerror', function(e) {
+            map.ui.consolePane.log(e.message);
+            console.log(e.message);
+        });
+ //       map.locateView(latlng);
+        
+        map.locateView = function(latlng) {
+            if (latlng)
+                this.setView(latlng, this.options.zoom);
+            else {
+                this.ui.consolePane.log('Expect location...', 120000);
+                this.locate({setView: false}); // no load event
+            }
+            return this;
+        };
 
         map.markerLayer = L.featureGroup(); // markers
         map.addLayer(map.markerLayer);
@@ -466,12 +488,12 @@
             this.startTrack(marker);
         };
         map.track = {
-            marker: undefined,
-            pathLayer: undefined, // polyline
-            rubberThread: undefined, //
+            marker: null,
+            pathLayer: null, // polyline
+            rubberThread: null, //
             accuracyLayer: L.featureGroup(), // track nodes accuracy circles
             pathLength: 0,
-            lastLocation: undefined
+            lastLocation: null
         };
         map.track.init = function(map) {
             if (map.hasLayer(this.accuracyLayer)) {
@@ -546,30 +568,6 @@
                     movement: dist
                 }));
             }
-        };
-        map.load = function(latlng) {
-//            this.once('load', function(e) {
-//                map.isLoaded = true;
-//            });
-            this.on('locationfound', function(e) {
-                map.ui.consolePane.log();
-                map.setView(e.latlng, this.options.zoom);
-            });
-            this.on('locationerror', function(e) {
-                this.ui.consolePane.log(e.message);
-                console.log(e.message);
-            });
-            this.locateOwn(latlng);
-            return this;
-        };
-        map.locateOwn = function(latlng) {
-            if (latlng)
-                this.setView(latlng, this.options.zoom);
-            else {
-                this.ui.consolePane.log('Expect location...', 120000);
-                this.locate({setView: false}); // no load event
-            }
-            return this;
         };
         return map;
     };
@@ -723,10 +721,10 @@
                     }
                 };
                 scrollHeight(scrollDiv, 110);
-                this.options.timer = setInterval(scrollHeight
+                this.options.interval = setInterval(scrollHeight
                         , 500, scrollDiv, 105);
                 tbl = L.DomUtil.create('table', 'tracker-list', scrollDiv);
-                var imgStyle = T.touchDevice ? 'tracker-button' : 'tracker-list';
+                var imgStyle = T.touchScreen ? 'tracker-button' : 'tracker-list';
                 var i = 0;
                 for (var key in list) {
                     row = L.DomUtil.create('tr', 'tracker-list', tbl);
@@ -748,7 +746,7 @@
             },
             onRemove: function(map) {
                 delete map.ui.listPane;
-                clearInterval(this.options.timer);
+                clearInterval(this.options.interval);
             }
         })),
         buttonPaneCtl: new (L.Control.extend({
@@ -819,7 +817,7 @@
                         img: './images/btn_locate.png',
                         onclick: function(map) {
                             return (function(e) {
-                                map.locateOwn();
+                                map.locateView();
                             });
                         }}
                 }
@@ -916,14 +914,14 @@
                 this.demos[i] = this.moveRandom(p);
             }
             this.sendAllDemos();
-            this.timer = setInterval(function(d) {
+            this.interval = setInterval(function(d) {
                 d.sendAllDemos();
             }, delay, this); //!IE9
             T.onJSONMessage(JSON.stringify({action: 'message', message: 'DEMO started'}));
         },
         stop: function() {
-            if (this.timer)
-                clearTimeout(this.timer);
+            if (this.interval)
+                clearInterval(this.interval);
         }
     };
 }(window, document));
