@@ -114,8 +114,9 @@
                     console.log(e.message);
                 }
             }
+//            console.log('WakeLock used');
         } else {
-            console.log('WakeLock API not supported');
+            console.log('WakeLock API not supported. NoSleep used.');
 // https://github.com/richtr/NoSleep.js            
             return new NoSleep();
         }
@@ -178,20 +179,19 @@
 
                         if (!lw.lastLocation) {
                             lw.lastLocation = l;
+                            lw.onLocationFound(lw.lastLocation);
                         }
                         if (lw.lastLocation.timestamp > l.timestamp) {
-                            console.log('Geolocation: WATCH ignore location');
+//                            console.log('Geolocation: WATCH ignore location');
                             return;
                         }
                         lw.locations.push(l);
                         if (lw.locations.length > 1) {
-                            var loc1 = lw.locations.shift();
-                            var loc2 = lw.locations.shift();
-                            if (loc1.coords.accuracy > loc2.coords.accuracy)
-                                lw.lastlocation = loc2;
-                            else
-                                lw.lastlocation = loc1;
-                            lw.onLocationFound(lw.lastlocation);
+                            var loc = lw.locations.shift();
+                            lw.lastLocation = lw.locations.shift();
+                            if (loc.coords.accuracy < lw.lastLocation.coords.accuracy)
+                                lw.lastlocation = loc;
+                            lw.onLocationFound(lw.lastLocation);
                         }
 
                         /*                        
@@ -383,7 +383,7 @@
         }).addTo(map);
 
         map.isLoaded = false; //
-        map.fitWorld({padding: [0,-1000]});//.setZoom(T.smallScreen ? 1 : 2);
+        map.fitWorld({padding: [-100,-1000]});//.setZoom(T.smallScreen ? 1 : 2);
 
         map.ui = {}; // user interface
         map.on('locationfound', function(e) {
