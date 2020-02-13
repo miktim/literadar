@@ -22,6 +22,7 @@
         locale: {
             ownId: 'Own'
         },
+        
         smallScreen: (Math.min(screen.width, screen.height) > 500) ? false : true,
         touchScreen: (function() {
 // https://stackoverflow.com/questions/4817029/whats-the-best-way-to-detect-a-touch-screen-device-using-javascript/4819886#4819886                    
@@ -38,11 +39,14 @@
             var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('');
             return mq(query);
         })(),
+        
         locations: [],
         icons: {},
         map: null
     };
+    
     window.T = T;
+    
     T.makeIcon = function(url, isz) {
         isz = isz || 32;
         return L.icon({
@@ -60,6 +64,7 @@
                 obj[key] = opts[key];
         return obj;
     };
+    
 // set html ?options
     (function() {
         if (location.search) {
@@ -93,6 +98,7 @@
             }
         }
     })();
+    
     T.latLng = function(obj) {
         if (Array.isArray(obj.latlng))
             obj.latlng = {lat: obj.latlng[0], lng: obj.latlng[1]};
@@ -100,6 +106,7 @@
             obj.latlng = {lat: obj.latitude, lng: obj.longitude};
         return obj;
     };
+    
 // https://www.w3.org/TR/wake-lock/
 // https://web.dev/wakelock/
     T.WakeLocker = function() {
@@ -143,6 +150,7 @@
             }
         };
     };
+    
     T.Location = function() {
         this.id = ''; // unique source id (string)
         this.itsme = false; // is own location
@@ -155,6 +163,7 @@
         this.timestamp = null; // acquired time in milliseconds
         this.timeout = null; // lifetime in milliseconds?
     };
+    
 // https://w3c.github.io/geolocation-api/
 // leaflet.src.js section Geolocation methods
     T.locationWatcher = new function() {
@@ -194,42 +203,6 @@
                             lw.onLocationFound(lw.lastLocation);
                         }
 
-                        /*                        
-                         if (!lw.lastLocation) {
-                         lw.lastLocation = l;
-                         lw.locations.push(l);
-                         lw.onLocationFound(l);
-                         } else {
-                         //                            if (lw.lastLocation.timestamp > l.timestamp) return;
-                         
-                         lw.locations.push(l);
-                         if (lw.locations.length > 2 && lw.isFree) {
-                         lw.isFree = false;
-                         // centroid
-                         var lat = 0, lng = 0, alt = 0, acc = 0, tme = 0
-                         , nextLocation;
-                         for (var i = 0; i < 3; i++) {
-                         nextLocation = lw.locations.shift();
-                         lat += nextLocation.coords.latitude;
-                         lng += nextLocation.coords.longitude;
-                         acc = Math.max(acc, nextLocation.coords.accuracy);
-                         alt += nextLocation.coords.altitude;
-                         tme = Math.max(tme, nextLocation.timestamp);
-                         }
-                         nextLocation.coords.latitude = lat / 3;
-                         nextLocation.coords.longitude = lng / 3;
-                         nextLocation.coords.altitude = alt / 3;
-                         nextLocation.coords.accuracy = acc;
-                         nextLocation.timestamp = tme; //Date.now();
-                         //                                nextlocation.coords.heading =
-                         //                                nextlocation.coords.speed =
-                         //                                nextlocation.coords.altitudeAccuracy =
-                         lw.lastLocation = nextLocation;
-                         lw.isFree = true;
-                         }
-                         lw.onLocationFound(lw.lastLocation);
-                         }
-                         */
                     }, onError, options);
         };
         this.stop = function() {
@@ -239,6 +212,7 @@
             }
         };
     };
+    
     T.onLocationFound = function(l) {
         var loc = new T.Location();
         T.update(loc, T.latLng(l.coords));
@@ -284,6 +258,7 @@
             T.actions.answer({event: 'error', action: action, error: e});
         }
     };
+    
     T.checkWebSocket = function() {
         if (this.options.ws) {
             var wsurl = (window.location.protocol === 'https:' ?
@@ -383,6 +358,7 @@
         }).addTo(map);
 
         map.isLoaded = false; //
+        
         map.fitWorld({padding: [-100,-1000]});//.setZoom(T.smallScreen ? 1 : 2);
 
         map.ui = {}; // user interface
@@ -440,7 +416,7 @@
                 });
                 marker.addTo(this.markerLayer);
                 marker.accuracyCircle = L.circle(loc.latlng, loc.accuracy,
-                        {weight: 1, color: "blue"}).addTo(this.accuracyLayer);
+                        {weight: 1, color: 'blue'}).addTo(this.accuracyLayer);
                 this.markers[loc.id] = marker;
             } else {
                 marker.setLatLng(loc.latlng);
@@ -554,7 +530,7 @@
                     this.track.lastLocation = marker.location;
                     this.track.pathLayer.addLatLng(marker.location.latlng);
                     L.circle(marker.location.latlng, marker.accuracyCircle.getRadius(),
-                            {weight: 1, color: "blue"}).addTo(this.track.accuracyLayer);
+                            {weight: 1, color: 'blue'}).addTo(this.track.accuracyLayer);
                     this.track.pathLength += dist;
                     this.track.rubberThread.setLatLngs([]);
                 } else {
@@ -571,6 +547,7 @@
         };
         return map;
     };
+    
     T._ui = {
         infoPaneCtl: new (L.Control.extend({
             options: {
@@ -854,6 +831,7 @@
             return map;
         }
     };
+
     T.demo = {
         isRunning: false,
         demos: [],
